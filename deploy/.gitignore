@@ -1,0 +1,5 @@
+tls/
+.env
+watch/
+download/*.exe
+download/*.msi

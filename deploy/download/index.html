@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CadastroAI</title>
+<link rel="icon" href="icon.png">
+<style>
+  @font-face { font-family: "Bricolage"; src: url("bricolage.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+  :root { --bg: #0f0f0f; --surface: #1a1a1a; --ink: #fff; --muted: #9a9a9a; --accent: #dafa9c; --accent-ink: #0f0f0f; color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font: 18px/1.5 "Bricolage", "Segoe UI", system-ui, sans-serif; display: grid; grid-template-rows: auto 1fr auto; }
+  header, footer { padding: 24px clamp(16px, 2.2vw, 32px); display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: var(--muted); }
+  .logo { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 600; letter-spacing: -0.03em; font-size: 18px; }
+  main { padding: 10vh clamp(16px, 2.2vw, 32px) 64px; }
+  h1 { font-size: clamp(56px, 13vw, 200px); font-weight: 600; letter-spacing: -0.055em; line-height: 0.88; margin: 0 0 0 -0.05em; }
+  .row { display: flex; flex-wrap: wrap; gap: 24px 48px; align-items: flex-end; justify-content: space-between; margin-top: 64px; }
+  .lead { font-size: 22px; max-width: 40ch; margin: 0; }
+  .btn { display: inline-flex; align-items: center; height: 56px; padding: 0 32px; border-radius: 4px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; font-size: 18px; }
+  .btn:hover { background: #e6ffb8; }
+  .alt { color: var(--muted); font-size: 15px; margin-top: 10px; }
+  .alt a { color: var(--ink); }
+  ol { margin: 96px 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 4px; }
+  li { background: var(--surface); padding: 22px 24px; border-radius: 4px; }
+  li strong { display: block; margin-bottom: 6px; }
+  li span { color: var(--muted); font-size: 15px; }
+  code { font: inherit; color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo"><img src="icon.png" width="22" height="22" alt="">CadastroAI</span>
+  <span>Uso interno da equipe de cadastro</span>
+</header>
+<main>
+  <h1>CadastroAI</h1>
+  <div class="row">
+    <p class="lead">Instale o aplicativo neste computador. Os documentos e as decisões ficam no servidor da empresa, nunca no computador.</p>
+    <div>
+      <a class="btn" href="CadastroAI-setup.exe" download>Baixar para Windows</a>
+      <p class="alt">Instalação gerenciada pela TI: <a href="CadastroAI.msi" download>pacote .msi</a></p>
+    </div>
+  </div>
+  <ol>
+    <li><strong>Abra o instalador</strong><span>Se o Windows mostrar “O Windows protegeu o computador”, clique em “Mais informações” e depois em “Executar assim mesmo”. A TI pode remover esse aviso assinando o instalador.</span></li>
+    <li><strong>Informe o servidor</strong><span>Na tela de entrada, em “Servidor”, use <code id="server">https://este-endereco</code>.</span></li>
+    <li><strong>Entre com sua conta</strong><span>O administrador cria a conta e entrega a senha inicial. Esqueceu a senha? Fale com o administrador.</span></li>
+  </ol>
+</main>
+<footer><span>FinTrust</span><span>Windows 10 ou 11, 64 bits</span></footer>
+<script>
+  document.getElementById("server").textContent = location.origin;
+</script>
+</body>
+</html>

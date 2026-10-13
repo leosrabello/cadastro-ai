@@ -1,0 +1,24 @@
+# HTTPS front door: the API for the desktop app, and the download page for employees.
+{$CADASTRO_HOST} {
+	{$TLS_DIRECTIVE}
+
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+
+	handle_path /download* {
+		root * /srv/download
+		file_server
+	}
+
+	handle {
+		redir /download/ 302
+	}
+}

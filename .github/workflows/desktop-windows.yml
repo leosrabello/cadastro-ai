@@ -7,6 +7,9 @@ on:
   push:
     tags: ["desktop-v*"]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -53,3 +56,15 @@ jobs:
           path: |
             desktop/src-tauri/target/release/bundle/nsis/*.exe
             desktop/src-tauri/target/release/bundle/msi/*.msi
+      - name: Stable file names for the download page
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Copy-Item (Get-ChildItem src-tauri/target/release/bundle/nsis/*.exe | Select-Object -First 1).FullName out/CadastroAI-setup.exe
+          Copy-Item (Get-ChildItem src-tauri/target/release/bundle/msi/*.msi | Select-Object -First 1).FullName out/CadastroAI.msi
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release create "${{ github.ref_name }}" out/CadastroAI-setup.exe out/CadastroAI.msi --title "CadastroAI ${{ github.ref_name }}" --notes "Instaladores do CadastroAI para Windows. Copie os dois arquivos para deploy/download/ no servidor." --repo "${{ github.repository }}"

@@ -1,0 +1,89 @@
+# Production stack for the company server. Only Caddy is reachable from the network (HTTPS);
+# the API, workers, database and Redis stay on the internal Docker network.
+#
+#   cp .env.production.example .env   (fill it in)
+#   docker compose -f docker-compose.prod.yml up -d --build
+name: cadastro-ai
+
+x-backend: &backend
+  build: ../backend
+  env_file: .env
+  environment:
+    APP_ENV: production
+    DATABASE_URL: postgresql+psycopg://cadastro:${POSTGRES_PASSWORD}@db:5432/cadastro
+    REDIS_URL: redis://redis:6379/0
+    STORAGE_DIR: /data/documents
+    WATCH_ALLOWED_ROOTS: /watch
+  volumes:
+    - documents:/data/documents
+    - ${WATCH_FOLDER:-./watch}:/watch
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      CADASTRO_HOST: ${CADASTRO_HOST}
+      TLS_DIRECTIVE: ${TLS_DIRECTIVE:-tls internal}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./download:/srv/download:ro
+      - ${TLS_DIR:-./tls}:/etc/caddy/tls:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: cadastro
+      POSTGRES_USER: cadastro
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadastro -d cadastro"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    <<: *backend
+
+  worker:
+    <<: *backend
+    command: ["celery", "-A", "app.worker", "worker", "--loglevel=INFO", "--concurrency=2", "-Q", "documents"]
+
+  beat:
+    <<: *backend
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=INFO", "--schedule", "/tmp/celerybeat-schedule"]
+
+  watcher:
+    <<: *backend
+    command: ["python", "-m", "app.ingestion.watcher"]
+
+volumes:
+  pgdata:
+  redisdata:
+  documents:
+  caddy_data:
