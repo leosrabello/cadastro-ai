@@ -1,0 +1,217 @@
+{
+ "person": {
+  "name": "MARIA APARECIDA DOS SANTOS SILVA",
+  "cpf": "938.570.839-21"
+ },
+ "cnh": {
+  "size": [
+   1700,
+   1100
+  ],
+  "fields": {
+   "nome": {
+    "value": "MARIA APARECIDA DOS SANTOS SILVA",
+    "raw": "MARIA APARECIDA DOS SANTOS SILVA",
+    "conf": 0.958,
+    "bbox": [
+     0.0376,
+     0.2518,
+     0.4635,
+     0.2782
+    ]
+   },
+   "cpf": {
+    "value": "938.570.839-21",
+    "raw": "938.570.839-21",
+    "conf": 0.91,
+    "bbox": [
+     0.3306,
+     0.38,
+     0.4971,
+     0.4036
+    ]
+   },
+   "data_nascimento": {
+    "value": "1997-04-18",
+    "raw": "18/04/1997",
+    "conf": 0.96,
+    "bbox": [
+     0.0376,
+     0.38,
+     0.1559,
+     0.4073
+    ]
+   },
+   "validade": {
+    "value": "2032-04-04",
+    "raw": "04/04/2032",
+    "conf": 0.96,
+    "bbox": [
+     0.3306,
+     0.5164,
+     0.4494,
+     0.5436
+    ]
+   },
+   "data_emissao": {
+    "value": "2022-04-05",
+    "raw": "05/04/2022",
+    "conf": 0.96,
+    "bbox": [
+     0.0365,
+     0.5164,
+     0.1553,
+     0.5436
+    ]
+   },
+   "cnh_registro": {
+    "value": "39347357143",
+    "raw": "39347357143",
+    "conf": 0.9,
+    "bbox": [
+     0.6253,
+     0.38,
+     0.77,
+     0.4036
+    ]
+   },
+   "orgao_expedidor": {
+    "value": "DETRAN/SP",
+    "raw": "DETRAN-SP",
+    "conf": 0.91,
+    "bbox": [
+     0.21,
+     0.6245,
+     0.3147,
+     0.6455
+    ]
+   }
+  }
+ },
+ "rg": {
+  "size": [
+   1700,
+   1100
+  ],
+  "fields": {
+   "nome": {
+    "value": "MARIA APARECIDA DOS SANTOS SILVA",
+    "raw": "MARIA APARECIDA DOS SANTOS SILVA",
+    "conf": 0.96,
+    "bbox": [
+     0.12,
+     0.27,
+     0.5459,
+     0.2964
+    ]
+   },
+   "cpf": {
+    "value": "938.570.839-21",
+    "raw": "938.570.839-21",
+    "conf": 0.91,
+    "bbox": [
+     0.0882,
+     0.4527,
+     0.2547,
+     0.4764
+    ]
+   },
+   "data_nascimento": {
+    "value": "1997-04-18",
+    "raw": "18/04/1997",
+    "conf": 0.95,
+    "bbox": [
+     0.2906,
+     0.3618,
+     0.4088,
+     0.3891
+    ]
+   },
+   "data_expedicao": {
+    "value": "2022-08-17",
+    "raw": "17/08/2022",
+    "conf": 0.96,
+    "bbox": [
+     0.7653,
+     0.18,
+     0.8824,
+     0.2073
+    ]
+   },
+   "rg_numero": {
+    "value": "325781498",
+    "raw": "32.578.149-8",
+    "conf": 0.92,
+    "bbox": [
+     0.2359,
+     0.18,
+     0.3747,
+     0.2036
+    ]
+   },
+   "orgao_expedidor": {
+    "value": "SSP/SP",
+    "raw": "SSP/SP",
+    "conf": 0.92,
+    "bbox": [
+     0.2594,
+     0.5436,
+     0.33,
+     0.5709
+    ]
+   }
+  }
+ },
+ "comprovante": {
+  "size": [
+   1700,
+   1100
+  ],
+  "fields": {
+   "nome": {
+    "value": "MARIA APARECIDA DOS SANTOS SILVA",
+    "raw": "MARIA APARECIDA DOS SANTOS SILVA",
+    "conf": 0.956,
+    "bbox": [
+     0.1394,
+     0.1891,
+     0.5429,
+     0.2127
+    ]
+   },
+   "data_emissao": {
+    "value": "2026-09-25",
+    "raw": "25/09/2026",
+    "conf": 0.96,
+    "bbox": [
+     0.2324,
+     0.4064,
+     0.3447,
+     0.4318
+    ]
+   },
+   "endereco": {
+    "value": "RUA DAS PALMEIRAS 210 APTO 32 SAO PAULO SP",
+    "raw": "RUA DAS PALMEIRAS 210 APTO 32 SAO PAULO SP",
+    "conf": 0.958,
+    "bbox": [
+     0.1541,
+     0.2609,
+     0.6176,
+     0.2818
+    ]
+   },
+   "cep": {
+    "value": "04567-010",
+    "raw": "04567-010",
+    "conf": 0.96,
+    "bbox": [
+     0.0853,
+     0.3245,
+     0.1853,
+     0.3455
+    ]
+   }
+  }
+ }
+}

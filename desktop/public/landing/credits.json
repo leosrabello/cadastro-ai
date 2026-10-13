@@ -1,0 +1,50 @@
+[
+ {
+  "file": "public/landing/visto-verificado.jpg",
+  "media": "image",
+  "ref": "openverse:9b7ac49d-473b-4ffb-83c9-f3bf958f4e06",
+  "title": "Mesa Para Fichário P1, LabDoc-UFRRJ (22)",
+  "creator": "Desenhado por: Ruth Crivamo.",
+  "creatorUrl": null,
+  "date": null,
+  "license": "CC BY-SA 4.0",
+  "licenseCode": "by-sa",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/w/index.php?curid=148656709",
+  "via": "Wikimedia Commons",
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f3/Mesa_Para_Fich%C3%A1rio_P1%2C_LabDoc-UFRRJ_%2822%29.JPG/1920px-Mesa_Para_Fich%C3%A1rio_P1%2C_LabDoc-UFRRJ_%2822%29.JPG",
+  "width": 1920,
+  "height": 1489,
+  "bytes": 438140,
+  "credit": "\"Mesa Para Fichário P1, LabDoc-UFRRJ (22)\" by Desenhado por: Ruth Crivamo., CC BY-SA 4.0, via Wikimedia Commons",
+  "notes": [
+   "Share-alike: an altered version (recoloured, combined with other pictures) must be shared under the same licence."
+  ],
+  "saved": "2026-10-13T19:13:15.782Z"
+ },
+ {
+  "file": "public/landing/fichario-arquivo.jpg",
+  "media": "image",
+  "ref": "commons:185304024",
+  "title": "Kansallisarkisto Helsinki Rauhankatu 17 luettelohuone kortistokaappi 2026 02 23",
+  "creator": "Fuje23",
+  "creatorUrl": null,
+  "date": "2026-02-23",
+  "license": "CC BY-SA 4.0",
+  "licenseCode": "by-sa",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+  "creditRequired": true,
+  "page": "https://commons.wikimedia.org/wiki/File:Kansallisarkisto_Helsinki_Rauhankatu_17_luettelohuone_kortistokaappi_2026_02_23.jpg",
+  "via": "Wikimedia Commons",
+  "image": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Kansallisarkisto_Helsinki_Rauhankatu_17_luettelohuone_kortistokaappi_2026_02_23.jpg/1920px-Kansallisarkisto_Helsinki_Rauhankatu_17_luettelohuone_kortistokaappi_2026_02_23.jpg",
+  "width": 1920,
+  "height": 1280,
+  "bytes": 324969,
+  "credit": "\"Kansallisarkisto Helsinki Rauhankatu 17 luettelohuone kortistokaappi 2026 02 23\" by Fuje23, CC BY-SA 4.0, via Wikimedia Commons",
+  "notes": [
+   "Share-alike: an altered version (recoloured, combined with other pictures) must be shared under the same licence."
+  ],
+  "saved": "2026-10-13T19:13:16.227Z"
+ }
+]

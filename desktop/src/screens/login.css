@@ -1,24 +1,10 @@
-/* Hero "Column on one line": everything hangs on one vertical alignment 27% in from the left. */
-.login { position: relative; min-height: 100%; overflow: hidden; background: var(--bg); }
-.login-server { position: absolute; top: 24px; right: 32px; color: var(--muted); text-decoration: none; }
-.login-server:hover { color: var(--ink); }
-.login-column { position: absolute; left: 27%; top: 56px; width: 380px; }
-.login-mark { height: 22px; }
-.login-form { margin-top: clamp(80px, 22vh, 220px); display: grid; gap: 14px; }
-.login-title { font-size: var(--step-title); font-weight: 500; line-height: 1.25; letter-spacing: -0.02em; margin-bottom: 2px; }
-.login-sentence { color: var(--muted); margin-bottom: 14px; }
-.login-fragment {
-  position: absolute; left: 27%; bottom: 0; width: 368px; height: 112px;
-  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0; padding: 14px 16px; font-size: 14px;
-}
-.login-fragment-head { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 600; }
-.login-fragment-rows { position: relative; }
-.login-fragment-layer { position: absolute; inset: 0; display: grid; gap: 8px; opacity: 0; transition: opacity 1.6s ease; }
-.login-fragment-layer[data-on="true"] { opacity: 1; }
-.login-fragment-row { display: flex; justify-content: space-between; gap: 10px; }
-.login-fragment-row .mark { font-size: 13px; }
-
-@media (max-width: 900px) {
-  .login-column, .login-fragment { left: 24px; }
-  .login-column { width: calc(100% - 48px); max-width: 380px; }
-}
+/* Sign-in: one centred axis, one thing on the screen, wide empty flanks. */
+.login { min-height: 100%; display: grid; grid-template-rows: auto 1fr; background: var(--bg); }
+.login-top { display: flex; justify-content: space-between; padding: 24px clamp(16px, 2.2vw, 32px); font-size: 14px; }
+.login-back, .login-server { color: var(--muted); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; transition: color 140ms var(--ease); }
+.login-back:hover, .login-server:hover { color: var(--ink); }
+.login-center { display: grid; justify-items: center; align-content: center; padding-bottom: 12vh; }
+.login-logo { margin: 0 0 44px; font-size: inherit; }
+.login-form { width: min(360px, calc(100vw - 32px)); display: grid; gap: 14px; }
+.login-submit { width: 100%; height: 44px; justify-content: center; margin-top: 8px; font-size: 16px; }
+.login-help { text-align: center; margin-top: 4px; }

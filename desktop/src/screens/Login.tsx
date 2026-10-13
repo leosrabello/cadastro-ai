@@ -1,24 +1,10 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { isInsecureRemote, serverUrl, setServerUrl } from "../api/client";
 import { useAuth } from "../auth";
-import { Dialog, Stamp, errorText } from "../components/ui";
+import { Logo } from "../components/Logo";
+import { Dialog, errorText } from "../components/ui";
 import "./login.css";
-
-// The interface fragment at the foot of the sign-in screen: the registration slip as it fills in.
-const SLIP_STATES = [
-  [
-    { label: "Identidade com foto", state: "Recebido e conferido", tone: "accent" },
-    { label: "Comprovante de endereço", state: "Falta", tone: "danger" },
-  ],
-  [
-    { label: "Identidade com foto", state: "Recebido e conferido", tone: "accent" },
-    { label: "Comprovante de endereço", state: "Em análise", tone: "muted" },
-  ],
-  [
-    { label: "Identidade com foto", state: "Recebido e conferido", tone: "accent" },
-    { label: "Comprovante de endereço", state: "Recebido e conferido", tone: "accent" },
-  ],
-];
 
 export function Login() {
   const { signIn, sessionExpired } = useAuth();
@@ -27,13 +13,6 @@ export function Login() {
   const [error, setError] = useState<string | null>(sessionExpired ? "Sua sessão terminou. Entre novamente." : null);
   const [busy, setBusy] = useState(false);
   const [editingServer, setEditingServer] = useState(false);
-  const [slip, setSlip] = useState(0);
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = setInterval(() => !document.hidden && setSlip((s) => (s + 1) % SLIP_STATES.length), 5600);
-    return () => clearInterval(id);
-  }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -58,25 +37,20 @@ export function Login() {
 
   return (
     <div className="login">
-      <button className="login-server link-btn meta" onClick={() => setEditingServer(true)}>
-        Servidor: {host}
-      </button>
-      <div className="login-column">
-        <div className="login-mark">
-          <Stamp />
-        </div>
+      <div className="login-top">
+        <Link to="/" className="login-back">Voltar</Link>
+        <button className="login-server" onClick={() => setEditingServer(true)}>Servidor: {host}</button>
+      </div>
+      <main className="login-center">
+        <h1 className="login-logo enter">
+          <span style={{ ["--i" as string]: 0 }}><Logo size={44} /></span>
+        </h1>
         <form className="login-form enter" onSubmit={submit}>
-          <h1 className="login-title" style={{ ["--i" as string]: 0 }}>
-            Cadastros conferidos,
-            <br />
-            decisões registradas.
-          </h1>
-          <p className="login-sentence" style={{ ["--i" as string]: 1 }}>Use a conta criada pelo administrador.</p>
-          <label className="label" style={{ ["--i" as string]: 2 }}>
+          <label className="label" style={{ ["--i" as string]: 1 }}>
             <span>E-mail</span>
-            <input className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="input" type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} autoFocus />
           </label>
-          <label className="label" style={{ ["--i" as string]: 3 }}>
+          <label className="label" style={{ ["--i" as string]: 2 }}>
             <span>Senha</span>
             <input className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </label>
@@ -85,34 +59,12 @@ export function Login() {
               {error}
             </p>
           )}
-          <div className="row" style={{ marginTop: 6, ["--i" as string]: 4 }}>
-            <button className="btn btn-primary" disabled={busy}>
-              {busy ? "Entrando…" : "Entrar"}
-            </button>
-            <span className="meta">Esqueceu a senha? Fale com o administrador.</span>
-          </div>
+          <button className="btn btn-primary login-submit" disabled={busy} style={{ ["--i" as string]: 3 }}>
+            {busy ? "Entrando…" : "Entrar"}
+          </button>
+          <p className="meta login-help" style={{ ["--i" as string]: 4 }}>Esqueceu a senha? Fale com o administrador.</p>
         </form>
-      </div>
-      <div className="login-fragment" data-ui aria-hidden="true" style={{ animation: "rise 600ms var(--ease) 420ms both" }}>
-        <div className="login-fragment-head">
-          <span>Exigências do cadastro</span>
-          <span className="meta">Pessoa física</span>
-        </div>
-        <div className="login-fragment-rows">
-          {SLIP_STATES.map((rows, i) => (
-            <div key={i} className="login-fragment-layer" data-on={i === slip}>
-              {rows.map((r) => (
-                <div key={r.label} className="login-fragment-row">
-                  <span>{r.label}</span>
-                  <span className="mark" data-tone={r.tone}>
-                    {r.state}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
+      </main>
       {editingServer && <ServerDialog onClose={() => setEditingServer(false)} />}
     </div>
   );

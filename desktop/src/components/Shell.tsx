@@ -5,7 +5,8 @@ import { api } from "../api/client";
 import type { Dashboard, RegistrationRow } from "../api/types";
 import { useAuth, usePerm } from "../auth";
 import { ROLES } from "../lib/format";
-import { Dialog, Stamp, errorText } from "./ui";
+import { Logo } from "./Logo";
+import { Dialog, errorText } from "./ui";
 
 export function Shell() {
   const { meta, signOut } = useAuth();
@@ -27,8 +28,7 @@ export function Shell() {
     <div className="app">
       <nav className="rail" aria-label="Navegação principal">
         <div className="wordmark">
-          <Stamp />
-          Cadastro AI
+          <Logo size={20} />
         </div>
         {perm.operate && (
           <button className="btn btn-primary" onClick={() => setCreating(true)}>

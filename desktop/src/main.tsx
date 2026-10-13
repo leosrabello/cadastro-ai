@@ -13,6 +13,7 @@ import { Dashboard } from "./screens/Dashboard";
 import { DocumentReview } from "./screens/DocumentReview";
 import { History } from "./screens/History";
 import { Inbox } from "./screens/Inbox";
+import { Landing } from "./screens/Landing";
 import { Login } from "./screens/Login";
 import { Queue } from "./screens/Queue";
 import { RegistrationDetail } from "./screens/RegistrationDetail";
@@ -30,7 +31,15 @@ const queryClient = new QueryClient({
 
 function Routed() {
   const { signedIn } = useAuth();
-  if (!signedIn) return <Login />;
+  if (!signedIn) {
+    return (
+      <Routes>
+        <Route index element={<Landing />} />
+        <Route path="entrar" element={<Login />} />
+        <Route path="*" element={<Navigate to="/entrar" replace />} />
+      </Routes>
+    );
+  }
   return (
     <Routes>
       <Route element={<Shell />}>

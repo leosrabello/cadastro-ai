@@ -178,3 +178,7 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; transition-duration: 1ms !important; }
 }
+
+/* logo: the stamp and the wordmark in the display face */
+.logo { display: inline-flex; align-items: center; gap: 0.5em; font-weight: 600; letter-spacing: -0.03em; line-height: 1; font-variation-settings: "opsz" 48; color: var(--ink); }
+.logo-mark { flex: none; }

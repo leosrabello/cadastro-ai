@@ -67,3 +67,26 @@ Remaining FAILs are rules for marketing pages that were deliberately not followe
 The skill's look-and-fix loop was run on screenshots of the working app, and the fixes are in the
 code: orphan word in the sign-in sentence, wrapped fragment rows, decision buttons wrapping,
 untranslated audit actions and statuses, field colour repeating between switched-on bands.
+
+## Landing page and sign-in (second pass)
+
+Requested: a landing page with a way in, a centred sign-in with a real logo, the name "CadastroAI".
+
+- **Draw:** `draw.mjs --keep palette,type --have product-ui`, three options; chose *Type and nothing
+  else* because the name itself is the first screen. Sections dealt and used: *Headline you can
+  type* (a live CPF/CNPJ check-digit line, the page's one interactive thing), *Two-ended rows* (the
+  validity rules and queue points, the real defaults), *Sentences with switches*, *Call and response*
+  (document to decision, with the CNH field regions taken from a real Tesseract run), *Recognition
+  as a table* (the history), *Contact as the headline* (a lime field whose display line is "Entrar").
+- **Idea:** the "verificado por / visto" box of the paper registry becomes the CPF line you can type
+  and the field that lights where it was read.
+- **Pictures:** two found in open collections and credited on the page (a Ministério da Agricultura
+  drawing with its stamped title block, LabDoc-UFRRJ, CC BY-SA 4.0; a card-catalogue drawer at the
+  Finnish National Archives, Fuje23, CC BY-SA 4.0), four synthetic documents rendered by the test
+  generator and labelled as such, and interface fragments. No clip fitted the subject.
+- **Gate:** lint 0 FAIL. Inspector on the landing: 0 FAIL after three look-and-fix rounds (type sizes
+  consolidated to five steps and body text in ink, hero sentence capped at 44ch, the name sized to
+  run margin to margin, phone rule rows recomposed). Remaining WARNs: no footage; secondary notes at
+  15px in the muted ink. The sign-in screen deliberately keeps one centred axis and no pictures; its
+  inspector FAILs (picture floor, focal size, motion count) are landing-page rules the landing now
+  meets.
