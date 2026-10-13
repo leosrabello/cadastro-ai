@@ -23,6 +23,7 @@ Two kinds of configuration, kept apart on purpose:
 | `AZURE_DI_ENDPOINT`, `AZURE_DI_KEY` | if azure | Azure AI Document Intelligence resource |
 | `AI_PROVIDER` | | `none` (default) or `anthropic` |
 | `ANTHROPIC_API_KEY` | if anthropic | Claude API key |
+| `ANTHROPIC_WORKSPACE_ID` | if the key is not workspace-scoped | Workspace id sent as `anthropic-workspace-id`; a workspace-scoped key is preferred |
 | `AI_MODEL` | | Default `claude-opus-5-5` |
 | `AI_ALLOW_IMAGES` | | Server-side ceiling for sending page images to the AI (default `false`) |
 | `WATCH_ALLOWED_ROOTS` | | Folders the watcher may be pointed at from Settings |

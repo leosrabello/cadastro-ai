@@ -21,7 +21,7 @@ def get_provider() -> AiProvider | None:
         return None
     from app.pipeline.ai.anthropic_provider import AnthropicProvider
 
-    return AnthropicProvider(api_key=s.anthropic_api_key or "", model=s.ai_model, timeout=s.ai_timeout_seconds)
+    return AnthropicProvider(api_key=s.anthropic_api_key or "", model=s.ai_model, timeout=s.ai_timeout_seconds, workspace_id=s.anthropic_workspace_id)
 
 
 __all__ = ["AiFailed", "AiProvider", "AiRequest", "AiResult", "AiUnavailable", "get_provider", "set_provider"]

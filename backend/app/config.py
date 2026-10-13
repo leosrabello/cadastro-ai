@@ -36,6 +36,7 @@ class Settings(BaseSettings):
 
     ai_provider: str = Field("none", alias="AI_PROVIDER")
     anthropic_api_key: str | None = Field(None, alias="ANTHROPIC_API_KEY")
+    anthropic_workspace_id: str | None = Field(None, alias="ANTHROPIC_WORKSPACE_ID")
     ai_model: str = Field("claude-opus-5-5", alias="AI_MODEL")
     ai_timeout_seconds: float = Field(120.0, alias="AI_TIMEOUT_SECONDS")
     ai_allow_images: bool = Field(False, alias="AI_ALLOW_IMAGES")

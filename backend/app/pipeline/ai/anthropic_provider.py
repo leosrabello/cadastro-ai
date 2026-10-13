@@ -22,9 +22,11 @@ PRICES = {
 class AnthropicProvider:
     name = "anthropic"
 
-    def __init__(self, api_key: str, model: str, timeout: float = 120.0, client: anthropic.Anthropic | None = None):
+    def __init__(self, api_key: str, model: str, timeout: float = 120.0, client: anthropic.Anthropic | None = None, workspace_id: str | None = None):
         self.model = model
-        self.client = client or anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=2)
+        # keys not scoped to a workspace must name one on every request
+        headers = {"anthropic-workspace-id": workspace_id} if workspace_id else None
+        self.client = client or anthropic.Anthropic(api_key=api_key, timeout=timeout, max_retries=2, default_headers=headers)
 
     def analyze(self, request: AiRequest) -> AiResult:
         content: list[dict] = [
