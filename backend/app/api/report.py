@@ -51,7 +51,9 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
     types = get_setting(db, "document_types")
 
     # company
-    company = {"razao_social": reg.subject_name, "cnpj": format_cnpj(reg.tax_id) if reg.tax_id and len(reg.tax_id) == 14 else reg.tax_id,
+    tax_label, tax_fmt = (("CNPJ", format_cnpj(reg.tax_id)) if reg.tax_id and len(reg.tax_id) == 14
+                          else ("CPF", format_cpf(reg.tax_id)) if reg.tax_id and len(reg.tax_id) == 11 else (None, None))
+    company = {"razao_social": reg.subject_name, "cnpj": tax_fmt, "tax_id_label": tax_label,
                "endereco": None, "situacao_cadastral": None, "data_registro": None}
     for t in ("cartao_cnpj", "certidao_simplificada", "contrato_social", "estatuto_social"):
         d = _latest(docs, t)

@@ -16,7 +16,7 @@ interface Report {
   generated_by: string;
   reference_date: string;
   registration: { id: string; code: string; kind_label: string; status: string; ready_for_decision: boolean };
-  company: { razao_social: string; cnpj: string | null; endereco: string | null; situacao_cadastral: string | null };
+  company: { razao_social: string; cnpj: string | null; tax_id_label: string | null; endereco: string | null; situacao_cadastral: string | null };
   partners: { nome: string; cpf: string | null; fora_do_quadro?: boolean; irpf: { exercicio: string | null; bens: number | null; dividas: number | null; dividendos: number | null }[] }[];
   revenue: {
     series: Record<string, Record<string, number>>;
@@ -168,19 +168,26 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
   const stages = rep.checklist.stages ?? [];
   const items = (rep.checklist.documents ?? []).filter((i) => !stages.length || i.stage === stageNow);
   const title = rep.company.razao_social;
-  const tiles = [photo, ...pages];
+  const isCompany = rep.company.tax_id_label !== "CPF";
+  // two lines at most: shrink long names until they fit the 880px measure on two lines
+  const titleSize = Math.max(56, Math.min(104, Math.floor(1720 / (title.length * 0.6))));
+  // the visit photograph if there is one, then the case's own document pages, never an empty cell
+  const pics = [photo, ...pages].filter((x): x is string => !!x);
+  const hasRevenue = !!s;
+  const hasPeopleData = (rep.debt?.items ?? []).length > 0 || !!rep.customers;
 
   return (
     <div className="rs" ref={ref}>
       {/* masthead: gutterless mosaic, header flush on its upper edge */}
       <header className="rs-band">
         <div className="rs-mosaic">
-          <div className="rs-cell rs-photo rs-span2x2">{tiles[0] ? <img src={tiles[0]} alt="Fotografia da visita comercial" /> : <span className="rs-tile-ink" />}</div>
+          <div className="rs-cell rs-span2x2" data-kind={photo ? "photo" : "page"}>{pics[0] ? <img src={pics[0]} alt={photo ? "Fotografia da visita comercial" : "Primeira página de um documento do cadastro"} /> : null}</div>
           <div className="rs-cell rs-tile-accent rs-span-rows" />
-          <div className="rs-cell rs-photo">{tiles[1] && <img src={tiles[1]} alt="" />}</div>
+          <div className="rs-cell" data-kind="page">{pics[1] ? <img src={pics[1]} alt="" /> : null}</div>
           <div className="rs-cell rs-tile-ink" />
-          <div className="rs-cell rs-photo">{tiles[2] && <img src={tiles[2]} alt="" />}</div>
-          <div className="rs-cell rs-photo rs-span2">{tiles[3] ? <img src={tiles[3]} alt="" /> : <span className="rs-tile-paper2" />}</div>
+          <div className="rs-cell" data-kind="page">{pics[2] ? <img src={pics[2]} alt="" /> : null}</div>
+          <div className="rs-cell rs-span2" data-kind="page">{pics[3] ? <img src={pics[3]} alt="" /> : null}</div>
+          <div className="rs-cell rs-tile-ink" />
         </div>
         <div className="rs-head">
           <div className="rs-wordmark"><LogoMark size={26} /><span>CadastroAI</span></div>
@@ -189,8 +196,8 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
       </header>
 
       <section className="rs-titlebar">
-        <p className="rs-standfirst">Relatório de análise de crédito{rep.company.cnpj ? `, CNPJ ${rep.company.cnpj}` : ""}.{rep.company.endereco ? ` ${rep.company.endereco}.` : ""}</p>
-        <h1 className="rs-title">{title}</h1>
+        <p className="rs-standfirst">{isCompany ? "Relatório de análise de crédito" : "Relatório de análise cadastral"}{rep.company.cnpj ? `, ${rep.company.tax_id_label} ${rep.company.cnpj}` : ""}.{rep.company.endereco ? ` ${rep.company.endereco}.` : ""}</p>
+        <h1 className="rs-title" style={{ fontSize: titleSize }}>{title}</h1>
       </section>
 
       {/* ledger aligned on the decimal */}
@@ -210,10 +217,8 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
       )}
 
       {/* fixed output beside the reading column */}
-      <section className="rs-split">
-        <div className="rs-field">
-          {s ? <RevenueChart rep={rep} /> : <p className="rs-empty">Sem relação de faturamento lida nos documentos.</p>}
-        </div>
+      <section className="rs-split" data-single={!hasRevenue}>
+        {hasRevenue && <div className="rs-field"><RevenueChart rep={rep} /></div>}
         <div className="rs-reading">
           <h2 className="rs-h">Pontos de atenção</h2>
           {rep.findings.top.length === 0 ? (
@@ -258,10 +263,10 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
 
       {/* names in columns */}
       <section className="rs-names">
-        <h2 className="rs-h">Pessoas e relações</h2>
+        <h2 className="rs-h">{isCompany ? "Pessoas e relações" : "Pessoa"}</h2>
         <div className="rs-cols">
           <div>
-            <p className="rs-soft">Sócios</p>
+            <p className="rs-soft">{isCompany ? "Sócios" : "Titular"}</p>
             {rep.partners.length === 0 && <p className="rs-soft">Não identificados nos documentos</p>}
             {rep.partners.map((p) => {
               const last = p.irpf[p.irpf.length - 1];
@@ -270,16 +275,20 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
               );
             })}
           </div>
-          <div>
-            <p className="rs-soft">Credores</p>
-            {(rep.debt?.items ?? []).length === 0 && <p className="rs-soft">Sem relação de endividamento</p>}
-            {(rep.debt?.items ?? []).map((d) => <p key={d.instituicao}>{d.instituicao}<small>{brl(d.tomado)}</small></p>)}
-          </div>
-          <div>
-            <p className="rs-soft">Maiores clientes</p>
-            {!rep.customers && <p className="rs-soft">Sem curva ABC</p>}
-            {rep.customers?.top.map((c) => <p key={c.cliente}>{c.cliente}<small>{c.percentual.toLocaleString("pt-BR")}% do faturamento</small></p>)}
-          </div>
+          {(isCompany || hasPeopleData) && (
+            <div>
+              <p className="rs-soft">Credores</p>
+              {(rep.debt?.items ?? []).length === 0 && <p className="rs-soft">Sem relação de endividamento</p>}
+              {(rep.debt?.items ?? []).map((d) => <p key={d.instituicao}>{d.instituicao}<small>{brl(d.tomado)}</small></p>)}
+            </div>
+          )}
+          {(isCompany || hasPeopleData) && (
+            <div>
+              <p className="rs-soft">Maiores clientes</p>
+              {!rep.customers && <p className="rs-soft">Sem curva ABC</p>}
+              {rep.customers?.top.map((c) => <p key={c.cliente}>{c.cliente}<small>{c.percentual.toLocaleString("pt-BR")}% do faturamento</small></p>)}
+            </div>
+          )}
         </div>
         {rep.statements.length > 0 && (
           <table className="rs-table">
@@ -302,7 +311,7 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
         <div className="rs-close-grid">
           <div>
             <p className="rs-soft-ink">Recomendação do analista</p>
-            <p className="rs-recommendation">{a.recomendacao ?? "Sem recomendação registrada"}</p>
+            <p className="rs-recommendation" data-empty={!a.recomendacao}>{a.recomendacao ?? "Sem recomendação registrada"}</p>
             <dl className="rs-terms">
               <div><dt>Limite total</dt><dd>{a.limite_total ?? "—"}</dd></div>
               <div><dt>Taxa</dt><dd>{a.taxa ?? "—"}</dd></div>
