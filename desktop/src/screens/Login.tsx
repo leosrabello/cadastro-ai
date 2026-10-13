@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { isInsecureRemote, serverUrl, setServerUrl } from "../api/client";
+import { isInsecureRemote, servedByServer, serverUrl, setServerUrl } from "../api/client";
 import { useAuth } from "../auth";
 import { Logo } from "../components/Logo";
 import { Dialog, errorText } from "../components/ui";
@@ -39,7 +39,7 @@ export function Login() {
     <div className="login">
       <div className="login-top">
         <Link to="/" className="login-back">Voltar</Link>
-        <button className="login-server" onClick={() => setEditingServer(true)}>Servidor: {host}</button>
+        {!servedByServer && <button className="login-server" onClick={() => setEditingServer(true)}>Servidor: {host}</button>}
       </div>
       <main className="login-center">
         <h1 className="login-logo enter">

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { serverUrl } from "../api/client";
+import { servedByServer, serverUrl } from "../api/client";
 import { Logo } from "../components/Logo";
 import fields from "../assets/landing-fields.json";
 import "./landing.css";
@@ -389,7 +389,7 @@ export function Landing() {
           <div>
             <Logo size={18} />
             <p>Uso interno da equipe de cadastro.</p>
-            <p className="num">Servidor: {host}</p>
+            {!servedByServer && <p className="num">Servidor: {host}</p>}
           </div>
           <a href="#/" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Voltar ao topo</a>
         </div>

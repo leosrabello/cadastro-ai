@@ -36,7 +36,11 @@ function safeSet(store: Storage, key: string, value: string | null) {
 let token: string | null = safeGet(sessionStorage, TOKEN_KEY);
 let onUnauthorized: (() => void) | null = null;
 
+/** Opened in a browser from the company server: the API is on the same address, nothing to configure. */
+export const servedByServer = typeof window !== "undefined" && !("__TAURI_INTERNALS__" in window) && import.meta.env.PROD;
+
 export function serverUrl(): string {
+  if (servedByServer) return window.location.origin;
   return (safeGet(localStorage, SERVER_KEY) || import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 }
 

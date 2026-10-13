@@ -1,8 +1,11 @@
 # Deploying CadastroAI on the company server
 
-What employees get: they open `https://<server>/download/` in a browser, download the Windows
-installer, install it, and sign in with the account an administrator created. Everything they do
-goes to this server over HTTPS.
+What employees get: a link, `https://<server>/`. They open it in the browser (Edge or Chrome), sign
+in with the account an administrator created, and work. Nothing to install, nothing to configure,
+and every update reaches everyone at once.
+
+The Windows desktop app is optional, for those who prefer a separate window: it is offered at
+`https://<server>/download/`.
 
 ## 1. Server
 
@@ -42,7 +45,7 @@ docker compose -f docker-compose.prod.yml exec api python scripts/apply_checklis
 Check `https://<CADASTRO_HOST>/api/health`, sign in with the bootstrap administrator from the desktop
 app, create the employees' accounts, then remove `BOOTSTRAP_ADMIN_*` from `.env`.
 
-## 4. Publish the installer
+## 4. Optional: publish the desktop installer
 
 The Windows installers are built by GitHub Actions (`.github/workflows/desktop-windows.yml`) on every
 tag `desktop-vX.Y.Z`, with the repository variable `CADASTRO_API_URL` set to
