@@ -215,8 +215,8 @@ def registration_detail(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Se
 @router.patch("/{rid}")
 def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
     reg = get_registration(db, rid)
-    if reg.status in RegStatus.FINAL:
-        raise ApiError(409, "registration_closed", "Cadastro já decidido. Reabra-o antes de editar.")
+    if reg.status in RegStatus.CLOSED:
+        raise ApiError(409, "registration_closed", "Cadastro reprovado. Reabra-o antes de editar.")
     before = {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields}
     if body.subject_name is not None:
         reg.subject_name = " ".join(body.subject_name.split()).upper()
@@ -268,11 +268,14 @@ def decide(rid: uuid.UUID, body: DecisionIn, p: Principal = Depends(OPERATORS), 
             raise ApiError(409, "still_processing", "Há documentos em processamento. Aguarde a análise terminar.")
         blockers = []
         for item in checklist.get("documents", []):
-            if item["state"] != "ok":
+            if item.get("blocking", True) and item.get("required", True) and item["state"] != "ok":
                 blockers.append(f"{item['label']}: {CHECK_STATE_LABELS.get(item['state'], item['state'])}")
         for item in checklist.get("fields", []):
             if item["state"] != "ok":
                 blockers.append(f"{item['label']}: não lido")
+        for item in checklist.get("info", []):
+            if item.get("blocking") and item["state"] != "ok":
+                blockers.append(f"{item['label']}: não informado")
         open_findings = db.execute(
             select(Finding).where(Finding.registration_id == reg.id, Finding.status.in_(FindingStatus.OPEN_STATES))
         ).scalars().all()

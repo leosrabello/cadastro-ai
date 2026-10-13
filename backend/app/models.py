@@ -53,6 +53,8 @@ class RegStatus:
         PROCESSING_FAILED,
     )
     FINAL = (APPROVED, REJECTED)
+    # closed to new documents and edits; an approved registration still receives formalização documents
+    CLOSED = (REJECTED,)
 
 
 class DocStatus:

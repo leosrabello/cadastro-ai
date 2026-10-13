@@ -59,6 +59,7 @@ export const CHECK_STATE: Record<ChecklistItem["state"], { label: string; tone: 
   too_old: { label: "Emitido há tempo demais", tone: "danger" },
   invalid: { label: "Situação inválida", tone: "danger" },
   needs_review: { label: "Precisa de conferência", tone: "warn" },
+  optional: { label: "Se aplicável", tone: "hollow" },
 };
 
 export const ACTIONS: Record<string, string> = {
@@ -69,6 +70,7 @@ export const ACTIONS: Record<string, string> = {
   "registration.created": "Criou o cadastro",
   "registration.updated": "Editou o cadastro",
   "registration.viewed": "Abriu o cadastro",
+  "registration.report_generated": "Gerou o relatório de análise",
   "registration.status_changed": "Situação alterada",
   "registration.approve": "Aprovou",
   "registration.reject": "Reprovou",
@@ -141,8 +143,28 @@ export function fmtTaxId(v: string | null): string {
   return v;
 }
 
+function summarizeJson(name: string, value: string): string | null {
+  try {
+    const v = JSON.parse(value);
+    if (name === "faturamento_mensal") {
+      return Object.entries(v.years as Record<string, Record<string, number>>)
+        .sort(([a], [b]) => b.localeCompare(a))
+        .map(([y, m]) => `${y}: ${plural(Object.keys(m).length, "mês", "meses")}`)
+        .join("; ");
+    }
+    if (name === "endividamento_itens") return (v as { instituicao: string }[]).map((i) => i.instituicao).join(", ");
+    if (name === "concentracao_clientes") {
+      return (v as { cliente: string; percentual: number }[]).slice(0, 3).map((r) => `${r.cliente} ${String(r.percentual).replace(".", ",")}%`).join("; ");
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export function fmtFieldValue(name: string, value: string | null): string {
   if (!value) return EMPTY;
+  if (value.startsWith("{") || value.startsWith("[")) return summarizeJson(name, value) ?? value;
   if (/^\d{4}-\d{2}-\d{2}$/.test(value) && (name.startsWith("data_") || name === "validade")) return fmtDate(value);
   return value;
 }

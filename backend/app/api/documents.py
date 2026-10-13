@@ -1,3 +1,4 @@
+import re
 import uuid
 from typing import Literal
 
@@ -28,7 +29,7 @@ from app.models import (
     Registration,
     utcnow,
 )
-from app.pipeline.normalize import digits, format_cnpj, format_cpf, parse_date, valid_cnpj, valid_cpf
+from app.pipeline.normalize import digits, format_cnpj, format_cpf, format_money, parse_date, parse_money, valid_cnpj, valid_cpf
 from app.pipeline.orchestrator import analyze_registration
 from app.pipeline.rendering import render_page_png
 from app.settings_store import get_setting
@@ -103,7 +104,7 @@ async def upload(rid: uuid.UUID, files: list[UploadFile] = File(...), p: Princip
             results.append({"filename": name, "ok": False, "error": {"code": "duplicate", "message": f"Este arquivo já foi enviado neste cadastro ({exc.existing.original_filename}).", "document_id": str(exc.existing.id)}})
         except RegistrationClosed:
             db.rollback()
-            results.append({"filename": name, "ok": False, "error": {"code": "registration_closed", "message": "Cadastro já decidido. Reabra-o para anexar documentos."}})
+            results.append({"filename": name, "ok": False, "error": {"code": "registration_closed", "message": "Cadastro reprovado. Reabra-o para anexar documentos."}})
         except StorageUnavailable:
             db.rollback()
             results.append({"filename": name, "ok": False, "error": {"code": "storage_unavailable", "message": "Repositório indisponível. Tente reenviar em instantes."}})
@@ -219,7 +220,20 @@ def _normalize_field(name: str, value: str) -> tuple[str, bool, str | None]:
         return format_cnpj(digits(v)), True, None
     if name in ("nome", "razao_social"):
         return " ".join(v.split()).upper(), True, None
+    if name == "exercicio":
+        if not re.fullmatch(r"20\d{2}", v):
+            raise ApiError(422, "invalid_value", "Informe o ano com quatro dígitos.")
+        return v, True, None
+    if name in MONEY_FIELDS:
+        amount = parse_money(v)
+        if amount is None:
+            raise ApiError(422, "invalid_value", "Valor inválido. Use o formato 1.234.567,89.")
+        return format_money(amount), True, None
     return v, True, None
+
+
+MONEY_FIELDS = {"receita_liquida", "lucro_liquido", "patrimonio_liquido", "ativo_total", "faturamento_total",
+                "endividamento_total", "patrimonio_declarado", "dividas_onus", "lucros_dividendos"}
 
 
 @router.patch("/documents/{did}/fields/{name}")
@@ -228,7 +242,7 @@ def edit_field(did: uuid.UUID, name: str, body: FieldEdit, p: Principal = Depend
     if name not in FIELD_LABELS:
         raise ApiError(404, "not_found", "Campo desconhecido.")
     reg = db.get(Registration, doc.registration_id) if doc.registration_id else None
-    if reg and reg.status in RegStatus.FINAL:
+    if reg and reg.status in RegStatus.CLOSED:
         raise ApiError(409, "registration_closed", "Cadastro já decidido.")
     field = next((f for f in doc.fields if f.name == name), None)
     before = field.value if field else None
@@ -272,7 +286,7 @@ def _rerun_rules(db: Session, doc: Document) -> None:
         ).scalars().all()
         produced = {d.fingerprint(None) for d in vr.findings}
         for f in keep:
-            if f.fingerprint not in produced and f.code in ("DOC_EXPIRED", "DOC_TOO_OLD", "EXPIRY_MISSING", "ISSUE_DATE_MISSING", "DATE_CONTRADICTION", "DATE_UNREADABLE", "REQUIRED_VALUE_MISSING", "REQUIRED_VALUE_MISMATCH"):
+            if f.fingerprint not in produced and f.code in ("DOC_EXPIRED", "DOC_TOO_OLD", "EXPIRY_MISSING", "ISSUE_DATE_MISSING", "DATE_CONTRADICTION", "DATE_UNREADABLE", "REQUIRED_VALUE_MISSING", "REQUIRED_VALUE_MISMATCH", "SIGNATURE_NOT_FOUND", "REVENUE_OUTDATED"):
                 f.status = FindingStatus.SUPERSEDED
         if vr.findings:
             existing = {f.fingerprint for f in db.execute(select(Finding).where(Finding.document_id == doc.id)).scalars()}
@@ -314,7 +328,7 @@ def associate(did: uuid.UUID, body: AssociateIn, p: Principal = Depends(OPERATOR
     if doc.registration_id is not None:
         raise ApiError(409, "already_associated", "O documento já pertence a um cadastro.")
     reg = get_registration(db, body.registration_id)
-    if reg.status in RegStatus.FINAL:
+    if reg.status in RegStatus.CLOSED:
         raise ApiError(409, "registration_closed", "Cadastro já decidido.")
     dup = db.execute(select(Document).where(Document.registration_id == reg.id, Document.sha256 == doc.sha256)).scalar_one_or_none()
     if dup:
@@ -358,7 +372,7 @@ def resolve_finding(fid: uuid.UUID, body: ResolveIn, p: Principal = Depends(OPER
     if f is None:
         raise ApiError(404, "not_found", "Ponto não encontrado.")
     reg = db.get(Registration, f.registration_id) if f.registration_id else None
-    if reg and reg.status in RegStatus.FINAL:
+    if reg and reg.status in RegStatus.CLOSED:
         raise ApiError(409, "registration_closed", "Cadastro já decidido.")
     note = (body.note or "").strip()
     policy = get_setting(db, "approval")

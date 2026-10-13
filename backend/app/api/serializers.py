@@ -18,6 +18,23 @@ FIELD_LABELS = {
     "socios": "Sócios",
     "data_registro": "Data de registro",
     "emissor": "Emissor",
+    "exercicio": "Exercício",
+    "receita_liquida": "Receita líquida",
+    "lucro_liquido": "Lucro (prejuízo) líquido",
+    "patrimonio_liquido": "Patrimônio líquido",
+    "ativo_total": "Ativo total",
+    "faturamento_mensal": "Faturamento mensal",
+    "faturamento_total": "Faturamento do ano",
+    "periodo_fim": "Último mês informado",
+    "endividamento_total": "Endividamento total",
+    "endividamento_itens": "Endividamento por instituição",
+    "concentracao_clientes": "Concentração de clientes",
+    "crc_contador": "Contador (CRC)",
+    "assinatura_representante": "Assinatura do representante",
+    "patrimonio_declarado": "Bens e direitos declarados",
+    "dividas_onus": "Dívidas e ônus",
+    "lucros_dividendos": "Lucros e dividendos recebidos",
+    "regime_bens": "Regime de bens",
 }
 
 

@@ -210,3 +210,160 @@ def person(seed: int, name: str = "MARIA APARECIDA DOS SANTOS SILVA") -> Person:
         rg=f"{rnd.randint(10, 59)}.{rnd.randint(100, 999)}.{rnd.randint(100, 999)}-{rnd.randint(0, 9)}",
         cnh="".join(str(rnd.randint(0, 9)) for _ in range(11)),
     )
+
+
+# ---------- company (FIDC) credit documents ----------
+
+BANNER = "DOCUMENTO SINTETICO - SEM VALOR - GERADO PARA TESTES"
+MESES = ["JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
+
+
+def money(v: float) -> str:
+    s = f"{abs(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return ("-" if v < 0 else "") + s
+
+
+def text_pdf(lines: list[str], size: float = 10, photo: Image.Image | None = None) -> bytes:
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    y = 56
+    for text in lines:
+        if y > 800:
+            page = doc.new_page(width=595, height=842)
+            y = 56
+        page.insert_text((48, y), text, fontsize=size, fontname="helv")
+        y += size * 2.1
+    if photo is not None:
+        buf = io.BytesIO()
+        photo.convert("RGB").save(buf, "JPEG", quality=80)
+        page.insert_image(fitz.Rect(48, y + 10, 330, y + 190), stream=buf.getvalue())
+    page.insert_text((48, 820), BANNER, fontsize=7, fontname="helv")
+    out = doc.tobytes()
+    doc.close()
+    return out
+
+
+@dataclass
+class Company:
+    razao: str
+    cnpj: str
+    partners: list[Person]
+
+
+def company(seed: int = 500) -> Company:
+    return Company(
+        razao="RECICLAGEM VALE VERDE LTDA",
+        cnpj=make_cnpj(seed),
+        partners=[person(seed + 1, "SIDNEI DALMORO"), person(seed + 2, "JAQUELINE PRADO DALMORO")],
+    )
+
+
+def signature_block(rep: str, crc: bool = True) -> list[str]:
+    lines = ["", f"{rep} - SOCIO ADMINISTRADOR"]
+    if crc:
+        lines.append("ANA PAULA REIS - CONTADORA - CRC PR-045123/O-8")
+    return lines
+
+
+def certidao_simplificada_pdf(c: Company, issued: date) -> bytes:
+    return text_pdf([
+        "JUNTA COMERCIAL DO ESTADO (SINTETICA)",
+        "CERTIDAO SIMPLIFICADA",
+        "CERTIFICAMOS QUE AS INFORMACOES ABAIXO CONSTAM DOS ATOS ARQUIVADOS",
+        f"NOME EMPRESARIAL: {c.razao}",
+        f"CNPJ: {c.cnpj}",
+        "NIRE: 41201234567",
+        "CLAUSULA DOS SOCIOS",
+        *[f"{p.name}, brasileiro(a), empresario(a)" for p in c.partners],
+        f"DATA DE EMISSAO: {br(issued)}",
+    ])
+
+
+def balanco_pdf(c: Company, year: int, receita: float, lucro: float, pl: float, ativo: float, signed: bool = True) -> bytes:
+    return text_pdf([
+        f"{c.razao}",
+        f"CNPJ: {c.cnpj}",
+        f"BALANCO PATRIMONIAL E DEMONSTRACAO DO RESULTADO DO EXERCICIO FINDO EM 31/12/{year}",
+        f"ATIVO CIRCULANTE                       {money(ativo * 0.6)}",
+        f"ATIVO NAO CIRCULANTE                   {money(ativo * 0.4)}",
+        f"ATIVO TOTAL                            {money(ativo)}",
+        f"PASSIVO CIRCULANTE                     {money(ativo * 0.45)}",
+        f"PATRIMONIO LIQUIDO                     {money(pl)}",
+        "DEMONSTRACAO DO RESULTADO",
+        f"RECEITA LIQUIDA                        {money(receita)}",
+        f"LUCRO LIQUIDO DO EXERCICIO             {money(lucro)}",
+        *signature_block(c.partners[0].name, crc=signed),
+    ])
+
+
+def balancete_pdf(c: Company, year: int, receita: float) -> bytes:
+    return text_pdf([
+        f"{c.razao}",
+        f"CNPJ: {c.cnpj}",
+        f"BALANCETE DE VERIFICACAO - EXERCICIO {year} - ATE 31/08/{year}",
+        "CONTA                      SALDO ANTERIOR      DEBITO      CREDITO",
+        f"RECEITA LIQUIDA            {money(receita)}",
+        *signature_block(c.partners[0].name),
+    ])
+
+
+def faturamento_pdf(c: Company, year: int, values: dict[int, float], signed: bool = True) -> bytes:
+    lines = [f"{c.razao}", f"CNPJ: {c.cnpj}", f"RELACAO DE FATURAMENTO MENSAL {year}", f"MES        {year}"]
+    for m, v in sorted(values.items()):
+        lines.append(f"{MESES[m - 1]}        R$ {money(v)}")
+    lines.append(f"TOTAL      R$ {money(sum(values.values()))}")
+    return text_pdf(lines + signature_block(c.partners[0].name, crc=signed))
+
+
+def endividamento_pdf(c: Company, issued: date, items: list[tuple[str, float, float]]) -> bytes:
+    lines = [f"{c.razao}", f"CNPJ: {c.cnpj}", "RELACAO DE ENDIVIDAMENTO FINANCEIRO", f"DATA BASE: {br(issued)}",
+             "INSTITUICAO            LIMITE            SALDO DEVEDOR"]
+    for name, limit, taken in items:
+        lines.append(f"{name}    R$ {money(limit)}    R$ {money(taken)}")
+    lines.append(f"TOTAL    R$ {money(sum(t for _n, _l, t in items))}")
+    return text_pdf(lines + signature_block(c.partners[0].name, crc=False))
+
+
+def curva_abc_pdf(c: Company, issued: date, rows: list[tuple[str, float]]) -> bytes:
+    lines = [f"{c.razao}", "CURVA ABC DE CLIENTES", f"DATA DE EMISSAO: {br(issued)}", "CLIENTE                         PARTICIPACAO"]
+    lines += [f"{name}    {str(p).replace('.', ',')}%" for name, p in rows]
+    return text_pdf(lines)
+
+
+def irpf_pdf(p: Person, exercicio_: int, bens: float, dividas: float, dividendos: float) -> bytes:
+    return text_pdf([
+        "MINISTERIO DA FAZENDA - RECEITA FEDERAL (SINTETICO)",
+        "IMPOSTO SOBRE A RENDA - PESSOA FISICA",
+        f"DECLARACAO DE AJUSTE ANUAL - EXERCICIO {exercicio_} ANO-CALENDARIO {exercicio_ - 1}",
+        f"NOME: {p.name}",
+        f"CPF: {p.cpf}",
+        f"BENS E DIREITOS EM 31/12/{exercicio_ - 1}      R$ {money(bens)}",
+        f"DIVIDAS E ONUS REAIS                  R$ {money(dividas)}",
+        f"LUCROS E DIVIDENDOS RECEBIDOS         R$ {money(dividendos)}",
+    ])
+
+
+def relatorio_visita_pdf(c: Company, visited: date) -> bytes:
+    photo = Image.new("RGB", (560, 360), (120, 128, 120))
+    d = ImageDraw.Draw(photo)
+    d.rectangle([40, 120, 520, 330], fill=(170, 170, 160))
+    d.rectangle([90, 200, 200, 330], fill=(80, 80, 80))
+    d.text((44, 40), "FOTO SINTETICA DA FACHADA", fill=(250, 250, 250), font=_font(22))
+    return text_pdf([
+        "RELATORIO DE VISITA COMERCIAL",
+        f"EMPRESA: {c.razao}",
+        f"DATA DA VISITA: {br(visited)}",
+        "Estrutura ampla e organizada, compativel com o porte das operacoes.",
+        "REGISTRO FOTOGRAFICO:",
+    ], photo=photo)
+
+
+def certidao_casamento_pdf(a: Person, b: Person, married: date, regime: str = "COMUNHAO PARCIAL DE BENS") -> bytes:
+    return text_pdf([
+        "REPUBLICA FEDERATIVA DO BRASIL - REGISTRO CIVIL (SINTETICO)",
+        "CERTIDAO DE CASAMENTO",
+        f"NOME: {a.name}",
+        f"CONTRAENTE: {b.name}",
+        f"DATA DO CASAMENTO: {br(married)}",
+        f"REGIME DE BENS: {regime}",
+    ])

@@ -23,3 +23,20 @@ Decisions taken where the brief left a gap. Each can be changed; most are settin
 | Registration code format | `CAD-<year>-<6 digits>`, sequential per year |
 | Reference date for validity | The day of analysis; re-analysis uses the new date |
 | Desktop updates | Through the company's software distribution system, not in-app |
+
+## FinTrust checklist (2026, v2.1)
+
+Source: "Checklist de Documentos - FinTrust 2026 (v2.1)". Applied as the standard company profile
+(`Empresa (FIDC)`) with `scripts/apply_checklist_2026.py`; new installations get it by default.
+
+| Topic | Interpretation |
+| --- | --- |
+| Stages | *Análise de crédito* blocks the committee decision; *Formalização* becomes the stage in progress after approval. Approved registrations keep accepting documents; only a rejection closes a registration. |
+| "Emitida há até 60 dias" | Applied to the certidão simplificada. The consolidated contract amendment has no age limit (the reviewer confirms it is the latest). |
+| Years | Written as offsets from the current year, so "2024 e 2025" becomes "the two previous years" and the checklist rolls forward on 1 January. |
+| "Assinado por representante legal e contador" | The text must identify the accountant (CRC number) and a representative's signature block. The signature itself is checked by a person. |
+| "Faturamento 2026 (intervalo máximo de 2 meses)" | The last month informed must end no more than 62 days before the reference date. |
+| Comprovante de endereço | 60 days, for the company and for each partner (the previous default was 90). |
+| Per partner | Items "dos sócios" show how many were received; the number of partners is not enforced automatically. |
+| Spouse documents | Optional ("se aplicável"); the system cannot tell a spouse's ID from a partner's. |
+| Bank details, financial contact | Information filled on the registration, not documents. |

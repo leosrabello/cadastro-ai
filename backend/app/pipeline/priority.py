@@ -13,7 +13,7 @@ def compute(reg: Registration, docs: list[Document], findings: list[Finding], ch
         "escalated_finding": any(f.status == FindingStatus.ESCALATED for f in open_f),
         "high_finding": any(f.severity == "high" for f in open_f),
         "expired_document": any((d.validity or {}).get("state") in ("expired", "too_old") for d in docs),
-        "missing_mandatory": any(i["state"] in ("missing", "unclassified") for i in checklist.get("documents", [])),
+        "missing_mandatory": any(i["state"] in ("missing", "unclassified") and i.get("blocking", True) for i in checklist.get("documents", [])),
         "ready_for_decision": bool(checklist.get("ready_for_decision")),
     }
     score, reasons = 0, []

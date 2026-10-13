@@ -130,6 +130,35 @@ def evaluate(doc_type: str, type_spec: dict, fields: dict, doc_id, today: date) 
         result = ValidityResult("contradictory" if contradictory else "no_expiry",
                                 f"{label} não expira. {rule.get('note', '')}".strip(), f"{label}: sem validade", ref, findings)
 
+    for who in rule.get("requires_signatures") or []:
+        fname, label = ("crc_contador", "do contador (registro no CRC)") if who == "contador" else ("assinatura_representante", "do representante legal")
+        if not fields.get(fname) or not fields[fname].value:
+            findings.append(FindingDraft(
+                code="SIGNATURE_NOT_FOUND", category="validity", severity="medium", field_name=fname, key=who,
+                title=f"Identificação {label} não encontrada",
+                explanation=f"{label.capitalize()} não foi identificada no texto do documento. A regra exige {label.split('(')[0].strip()} assinando. A leitura automática procura o bloco de assinatura; a assinatura em si é conferida por uma pessoa.",
+                recommended_action="Confira a assinatura no original. Se faltar, peça o documento assinado.",
+                document_id=doc_id, rule_id=f"signature.{who}",
+            ))
+
+    gap = rule.get("current_year_max_gap_days")
+    year_f, end_f = fields.get("exercicio"), fields.get("periodo_fim")
+    if gap and year_f and year_f.value == str(today.year) and end_f and end_f.value:
+        try:
+            end = date.fromisoformat(end_f.value)
+            if (today - end).days > int(gap):
+                findings.append(FindingDraft(
+                    code="REVENUE_OUTDATED", category="validity", severity="high", field_name="periodo_fim",
+                    title=f"Faturamento {today.year} desatualizado",
+                    explanation=f"O último mês informado termina em {end.strftime('%d/%m/%Y')}, {(today - end).days} dias antes da data de referência. A regra aceita intervalo máximo de cerca de 2 meses.",
+                    recommended_action="Peça o faturamento atualizado, assinado pelo contador e pelo representante legal.",
+                    evidence=[_ev(fields, "periodo_fim", doc_id, "Último mês")], document_id=doc_id, rule_id="revenue.gap",
+                ))
+                result.state = "too_old"
+                result.summary = f"Faturamento até {end.strftime('%m/%Y')}; desatualizado."
+        except ValueError:
+            pass
+
     for fname, allowed in (rule.get("required_values") or {}).items():
         fv = fields.get(fname)
         if fv is None or not fv.value:

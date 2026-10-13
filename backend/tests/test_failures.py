@@ -232,3 +232,19 @@ def test_reprocessing_is_idempotent(client, analyst):
     second = client.get(f"/api/documents/{doc_id}", headers=analyst).json()
     assert {f["name"]: f["value"] for f in first["fields"]} == {f["name"]: f["value"] for f in second["fields"]}
     assert sorted(f["id"] for f in first["findings"]) == sorted(f["id"] for f in second["findings"])
+
+
+def test_ai_money_readings_are_compared_as_numbers(client, analyst):
+    from tests.test_checklist import Y
+
+    _enable_ai()
+    fake = FakeAi(_analysis(document_type="balanco_dre", fields=[
+        {"name": "receita_liquida", "value": "48.000.000,00", "page": 0, "evidence_text": "RECEITA LIQUIDA 48.000.000,00"},
+        {"name": "exercicio", "value": f"Exercício {Y - 1}", "page": 0, "evidence_text": ""},
+    ]))
+    ai.set_provider(fake)
+    c = syn.company(670)
+    reg = new_registration(client, analyst, c.razao, c.cnpj, kind="PJ")
+    r = upload(client, analyst, reg["id"], "balanco.pdf", syn.balanco_pdf(c, Y - 1, 48e6, 1e6, 5e6, 9e6))
+    doc = client.get(f"/api/documents/{r.json()['results'][0]['document']['id']}", headers=analyst).json()
+    assert not any(f["code"] == "AI_RULE_DISAGREEMENT" for f in doc["findings"])

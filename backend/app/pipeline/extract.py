@@ -8,6 +8,7 @@ Filiation (parents' names) is deliberately not extracted: the workflow does not 
 
 import re
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 
 from app.pipeline.normalize import (
     CEP_RE,
@@ -25,6 +26,7 @@ from app.pipeline.normalize import (
     valid_cnpj,
     valid_cpf,
 )
+from app.pipeline import financial as fin
 from app.pipeline.ocr.base import Line, PageText
 
 
@@ -50,7 +52,7 @@ LABELS: dict[str, list[str]] = {
     "cnh_registro": ["N REGISTRO", "NO REGISTRO", "N DE REGISTRO", "REGISTRO"],
     "data_nascimento": ["DATA DE NASCIMENTO", "DATA NASCIMENTO", "DATA NASC", "NASCIMENTO"],
     "data_expedicao": ["DATA DE EXPEDICAO", "DATA EXPEDICAO", "DATA EXPED", "EXPEDICAO"],
-    "data_emissao": ["DATA DE EMISSAO", "DATA DA EMISSAO", "DATA EMISSAO", "EMITIDO EM", "EMISSAO"],
+    "data_emissao": ["DATA DE EMISSAO", "DATA DA EMISSAO", "DATA EMISSAO", "EMITIDO EM", "EMISSAO", "DATA BASE", "DATA-BASE", "DATA DA VISITA", "VISITA REALIZADA EM", "DATA DO CASAMENTO", "LAVRADA EM"],
     "validade": ["DATA DE VALIDADE", "VALIDO ATE", "VALIDADE"],
     "orgao_expedidor": ["ORGAO EXPEDIDOR", "ORGAO EMISSOR", "EXPEDIDOR"],
     "endereco": ["ENDERECO DE ENTREGA", "ENDERECO", "LOGRADOURO"],
@@ -300,6 +302,99 @@ def _emissor(pages: list[PageText]) -> FieldValue | None:
     return None
 
 
+def _fv(name, value, raw, page, conf=0.8, note=None) -> FieldValue:
+    return FieldValue(name=name, value=value, raw=(raw or "")[:300], confidence=conf, page=page, bbox=None, valid=True, note=note)
+
+
+def _money_field(name, labels):
+    def run(pages):
+        hit = fin.labelled_money(pages, labels)
+        return _fv(name, fin.format_money(hit[0]), hit[1], hit[2]) if hit else None
+    return run
+
+
+def _exercicio(pages):
+    hit = fin.exercicio(pages)
+    return _fv("exercicio", hit[0], hit[1], hit[2], 0.85) if hit else None
+
+
+def _revenue(pages):
+    table = fin.revenue_table(pages)
+    if not table:
+        return None
+    return _fv("faturamento_mensal", fin.as_json(table), None, 0, 0.75, "Tabela mensal lida do documento; confira os valores no original.")
+
+
+def _revenue_total(pages):
+    table = fin.revenue_table(pages)
+    if not table:
+        return None
+    totals = {y: round(sum(m.values()), 2) for y, m in table["years"].items()}
+    latest = max(totals)
+    return _fv("faturamento_total", fin.format_money(totals[latest]), f"{latest}: soma de {len(table['years'][latest])} meses", 0, 0.75)
+
+
+def _period_end(pages):
+    table = fin.revenue_table(pages)
+    last = fin.last_month(table) if table else None
+    if not last:
+        return None
+    y, m = map(int, last.split("-"))
+    end = (date(y + (m == 12), m % 12 + 1, 1) - timedelta(days=1)).isoformat()
+    return _fv("periodo_fim", end, f"último mês informado: {m:02d}/{y}", 0, 0.75)
+
+
+def _debt_total(pages):
+    _items, total = fin.debt_items(pages)
+    return _fv("endividamento_total", fin.format_money(total), None, 0, 0.75) if total is not None else None
+
+
+def _debt_items(pages):
+    items, _total = fin.debt_items(pages)
+    return _fv("endividamento_itens", fin.as_json(items), None, 0, 0.7) if items else None
+
+
+def _concentration(pages):
+    rows = fin.concentration(pages)
+    return _fv("concentracao_clientes", fin.as_json(rows[:10]), None, 0, 0.7) if rows else None
+
+
+def _crc(pages):
+    hit = fin.accountant(pages)
+    return _fv("crc_contador", hit[0], hit[1], hit[2], 0.85) if hit else None
+
+
+def _rep(pages):
+    hit = fin.representative(pages)
+    return _fv("assinatura_representante", hit[0], hit[1], hit[2], 0.6, "Indica o bloco de assinatura; a assinatura em si é conferida por uma pessoa.") if hit else None
+
+
+def _regime(pages):
+    hit = fin.regime_bens(pages)
+    return _fv("regime_bens", hit[0], hit[1], hit[2], 0.85) if hit else None
+
+
+FINANCIAL = {
+    "exercicio": _exercicio,
+    "faturamento_mensal": _revenue,
+    "faturamento_total": _revenue_total,
+    "periodo_fim": _period_end,
+    "endividamento_total": _debt_total,
+    "endividamento_itens": _debt_items,
+    "concentracao_clientes": _concentration,
+    "crc_contador": _crc,
+    "assinatura_representante": _rep,
+    "regime_bens": _regime,
+    "receita_liquida": _money_field("receita_liquida", ["RECEITA LIQUIDA", "RECEITA OPERACIONAL LIQUIDA"]),
+    "lucro_liquido": _money_field("lucro_liquido", ["LUCRO LIQUIDO", "PREJUIZO LIQUIDO", "RESULTADO LIQUIDO", r"LUCRO \(PREJUIZO\) LIQUIDO"]),
+    "patrimonio_liquido": _money_field("patrimonio_liquido", ["PATRIMONIO LIQUIDO"]),
+    "ativo_total": _money_field("ativo_total", ["ATIVO TOTAL", "TOTAL DO ATIVO"]),
+    "patrimonio_declarado": _money_field("patrimonio_declarado", ["BENS E DIREITOS", "TOTAL DE BENS"]),
+    "dividas_onus": _money_field("dividas_onus", ["DIVIDAS E ONUS"]),
+    "lucros_dividendos": _money_field("lucros_dividendos", ["LUCROS E DIVIDENDOS"]),
+}
+
+
 def extract(doc_type: str | None, wanted: list[str], pages: list[PageText]) -> dict[str, FieldValue]:
     out: dict[str, FieldValue] = {}
     for name in wanted:
@@ -330,6 +425,8 @@ def extract(doc_type: str | None, wanted: list[str], pages: list[PageText]) -> d
             fv = _socios(pages)
         elif name == "emissor":
             fv = _emissor(pages)
+        elif name in FINANCIAL:
+            fv = FINANCIAL[name](pages)
         if fv is not None:
             if pages and pages[0].source == "pdf_text" and fv.page is not None:
                 fv.source = "pdf_text"

@@ -82,7 +82,7 @@ def dashboard(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
     missing_docs = db.execute(
         select(func.count(Registration.id)).where(
             Registration.status.notin_(RegStatus.FINAL),
-            text("EXISTS (SELECT 1 FROM jsonb_array_elements(registrations.checklist->'documents') i WHERE i->>'state' IN ('missing','unclassified'))"),
+            text("EXISTS (SELECT 1 FROM jsonb_array_elements(registrations.checklist->'documents') i WHERE i->>'state' IN ('missing','unclassified') AND COALESCE((i->>'blocking')::boolean, true))"),
         )
     ).scalar_one()
     recent = db.execute(

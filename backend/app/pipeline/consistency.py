@@ -60,23 +60,23 @@ def analyze(reg: Registration, docs: list[Document], rules: dict, profile: dict)
                     confidence=round(sim, 2), confidence_basis="Semelhança textual entre os nomes.",
                     rule_id="consistency.name.registration",
                 ))
-    for i, (da, fa) in enumerate(named):
-        for db_, fb in named[i + 1:]:
-            ok, sim, why = names_compatible(fa.value, fb.value, name_rules)
-            if not ok:
-                out.append(FindingDraft(
-                    code="NAME_MISMATCH_DOCUMENTS", category="consistency", severity="high",
-                    field_name="nome", document_id=da.id, key=str(db_.id),
-                    title="Nomes diferentes entre documentos",
-                    explanation=f"'{fa.value}' e '{fb.value}' não correspondem ({why}; semelhança {sim:.0%}).",
-                    recommended_action="Verifique se os dois documentos são da mesma pessoa.",
-                    evidence=[
-                        evidence(da.original_filename, fa.value, document_id=da.id, field="nome", page=fa.page, bbox=fa.bbox),
-                        evidence(db_.original_filename, fb.value, document_id=db_.id, field="nome", page=fb.page, bbox=fb.bbox),
-                    ],
-                    confidence=round(sim, 2), confidence_basis="Semelhança textual entre os nomes.",
-                    rule_id="consistency.name.documents",
-                ))
+    pairs = [] if reg.kind != "PF" else [(a, b) for i, a in enumerate(named) for b in named[i + 1:]]
+    for (da, fa), (db_, fb) in pairs:
+        ok, sim, why = names_compatible(fa.value, fb.value, name_rules)
+        if not ok:
+            out.append(FindingDraft(
+                code="NAME_MISMATCH_DOCUMENTS", category="consistency", severity="high",
+                field_name="nome", document_id=da.id, key=str(db_.id),
+                title="Nomes diferentes entre documentos",
+                explanation=f"'{fa.value}' e '{fb.value}' não correspondem ({why}; semelhança {sim:.0%}).",
+                recommended_action="Verifique se os dois documentos são da mesma pessoa.",
+                evidence=[
+                    evidence(da.original_filename, fa.value, document_id=da.id, field="nome", page=fa.page, bbox=fa.bbox),
+                    evidence(db_.original_filename, fb.value, document_id=db_.id, field="nome", page=fb.page, bbox=fb.bbox),
+                ],
+                confidence=round(sim, 2), confidence_basis="Semelhança textual entre os nomes.",
+                rule_id="consistency.name.documents",
+            ))
 
     # tax ids across documents and against the registration
     kind = profile.get("tax_id_kind", "cpf")
@@ -114,8 +114,35 @@ def analyze(reg: Registration, docs: list[Document], rules: dict, profile: dict)
                 rule_id="consistency.tax_id.documents",
             ))
 
-    # birth dates
-    if rules.get("birth_date_match", {}).get("enabled", True):
+    # a company file holds several people's documents: each must be someone in the shareholder structure
+    if reg.kind != "PF":
+        partners = []
+        for d in docs:
+            if d.doc_type in ("contrato_social", "certidao_simplificada", "estatuto_social"):
+                f = _field(d, "socios")
+                if f:
+                    partners += [p.strip() for p in f.value.split(";") if p.strip()]
+        if partners:
+            for d in docs:
+                if d.doc_type not in ("rg", "cin", "cnh", "irpf"):
+                    continue
+                f = _field(d, "nome")
+                if not f:
+                    continue
+                if not any(names_compatible(f.value, p, name_rules)[0] for p in partners):
+                    out.append(FindingDraft(
+                        code="PERSON_NOT_IN_PARTNERS", category="consistency", severity="low",
+                        field_name="nome", document_id=d.id, key="partners",
+                        title="Pessoa fora do quadro societário",
+                        explanation=f"'{f.value}' não consta entre os sócios lidos ({'; '.join(partners)}). Pode ser cônjuge, devedor solidário ou representante legal.",
+                        recommended_action="Confirme o vínculo da pessoa com a empresa.",
+                        evidence=[evidence("Nome no documento", f.value, document_id=d.id, field="nome", page=f.page, bbox=f.bbox),
+                                  evidence("Sócios", "; ".join(partners))],
+                        rule_id="consistency.partners",
+                    ))
+
+    # birth dates (one person per registration only)
+    if reg.kind == "PF" and rules.get("birth_date_match", {}).get("enabled", True):
         births = [(d, _field(d, "data_nascimento")) for d in identity_docs]
         births = [(d, f) for d, f in births if f]
         distinct = {f.value for _, f in births}

@@ -90,3 +90,19 @@ Requested: a landing page with a way in, a centred sign-in with a real logo, the
   15px in the muted ink. The sign-in screen deliberately keeps one centred axis and no pictures; its
   inspector FAILs (picture floor, focal size, motion count) are landing-page rules the landing now
   meets.
+
+## Analysis image (third pass)
+
+- **Draw:** `--keep palette,type`, three options; chose *The printed annual*, because a credit analysis
+  is content for a committee. Dealt blueprints used: *Mosaic masthead* (visit photograph and
+  cropped headers of the case's own documents, greyscale, butted with flat ink and accent tiles),
+  *Column aligned on the decimal* (the key figures), *Fixed output beside a reading column*
+  (revenue chart in an accent field, points of attention), *Day tabs, banded agenda* (the checklist
+  by stage), *Plain names in columns* (partners, creditors, customers), and a full ink close with the
+  analyst's opinion. Motion does not apply to an image.
+- **Chart:** dataviz skill procedure; the first palette (brand lime and grey) failed the validator
+  (lime above the lightness band, grey below the chroma floor); `#6a9a1c` / `#2f78b0` on paper pass
+  every check. Legend plus a direct label; per-bar tooltips on screen.
+- **Look-and-fix rounds:** repeated AI observations grouped and ranked after rule findings; CSS reset
+  specificity fixed (lost margins); figures in two decimal-aligned columns; document thumbnails
+  cropped to their printed headers; captions widened. Lint 0 FAIL.

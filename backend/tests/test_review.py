@@ -85,9 +85,10 @@ def test_approval_requires_authorized_role_and_clean_state(client, analyst, supe
     assert r.status_code == 201
     d = client.get(f"/api/registrations/{reg['id']}", headers=analyst).json()
     assert d["status"] == "approved" and d["decided_by"]["name"]
-    # a decided registration is closed to new documents and edits
+    # an approved registration keeps receiving formalization documents and stays approved
     r = upload(client, analyst, reg["id"], "outro.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today() - timedelta(days=1)).png())
-    assert r.status_code == 409
+    assert r.status_code == 201
+    assert client.get(f"/api/registrations/{reg['id']}", headers=analyst).json()["status"] == "approved"
 
 
 def test_approval_with_pending_items_needs_override_and_reason(client, analyst, supervisor):
@@ -126,6 +127,9 @@ def test_reject_requires_reason_and_is_never_automatic(client, analyst, supervis
     assert client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reject", "reason": "x"}, headers=supervisor).status_code == 422
     r = client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reject", "reason": "Documento com texto inserido; cliente não respondeu."}, headers=supervisor)
     assert r.status_code == 201
+    # a rejected registration is closed to new documents
+    r = upload(client, analyst, reg["id"], "nova.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today()).png())
+    assert r.status_code == 409
 
 
 def test_every_decision_is_audited_and_chain_verifies(client, analyst, supervisor, admin):

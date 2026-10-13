@@ -16,6 +16,9 @@ All employees work on the same registrations, documents, analyses and history on
 | Area | State |
 | --- | --- |
 | Registrations: create, search, filter, sort, paginate, detail | Working |
+| FinTrust 2026 checklist as the standard company profile (two stages, year-relative financials, signatures, required information) | Working |
+| Financial documents read: revenue tables, debt by institution, balance sheet lines, IRPF assets, customer concentration | Working, rule-based on text |
+| Analysis report rendered as a PNG for the credit committee | Working (desktop client export) |
 | Upload: native file picker, drag and drop, several files, per-file progress, retry, reasons for refusal | Working |
 | Shared-folder intake: completion detection, temp-file filtering, hash de-duplication, permission and outage handling, association by code/CPF, inbox for manual association | Working (separate service) |
 | OCR | Working with Tesseract (self-hosted). Azure Document Intelligence adapter written and unit-tested, not run against a live resource |

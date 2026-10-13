@@ -214,14 +214,14 @@ class FolderWatcher:
                     reg = db.execute(select(Registration).where(Registration.code == code)).scalar_one_or_none()
                     if reg is None:
                         return None, f"código {code} não encontrado; aguardando associação manual"
-                    if reg.status in RegStatus.FINAL:
-                        return None, f"{code} já decidido; aguardando associação manual"
+                    if reg.status in RegStatus.CLOSED:
+                        return None, f"{code} reprovado; aguardando associação manual"
                     return reg, f"associado pelo código {code}"
         if rules.get("match_tax_id_in_filename", True):
             for h in haystacks:
                 for d in re.findall(r"(?<!\d)(\d{14}|\d{11})(?!\d)", re.sub(r"[.\-/]", "", h)):
                     if (len(d) == 11 and valid_cpf(d)) or (len(d) == 14 and valid_cnpj(d)):
-                        regs = db.execute(select(Registration).where(Registration.tax_id == d, Registration.status.notin_(RegStatus.FINAL))).scalars().all()
+                        regs = db.execute(select(Registration).where(Registration.tax_id == d, Registration.status.notin_(RegStatus.CLOSED))).scalars().all()
                         if len(regs) == 1:
                             return regs[0], "associado pelo CPF/CNPJ no nome do arquivo"
                         if len(regs) > 1:

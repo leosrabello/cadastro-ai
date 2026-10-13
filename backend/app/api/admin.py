@@ -5,7 +5,7 @@ import uuid
 from typing import Any
 
 from fastapi import APIRouter, Body, Depends
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,8 @@ class ValidityRule(BaseModel):
     max_age_from: str | None = None
     max_age_severity: str | None = Field(None, pattern="^(low|medium|high)$")
     required_values: dict[str, list[str]] | None = None
+    requires_signatures: list[str] | None = None
+    current_year_max_gap_days: int | None = Field(None, ge=1, le=365)
     note: str | None = Field(None, max_length=500)
 
 
@@ -45,8 +47,36 @@ class DocType(BaseModel):
 
 class Requirement(BaseModel):
     id: str = Field(pattern=r"^[a-z0-9_]{2,40}$")
+    label: str = Field(min_length=2, max_length=160)
+    any_of: list[str] = Field(default_factory=list)
+    options: list[list[str]] | None = None
+    stage: str | None = None
+    group: str | None = Field(None, max_length=80)
+    note: str | None = Field(None, max_length=300)
+    year_offset: int | None = Field(None, ge=-10, le=0)
+    per_partner: bool = False
+    required: bool = True
+
+    @model_validator(mode="after")
+    def _some_type(self):
+        if not self.any_of and not self.options:
+            raise ValueError("informe any_of ou options")
+        return self
+
+
+class Stage(BaseModel):
+    id: str = Field(pattern=r"^[a-z0-9_]{2,40}$")
+    label: str = Field(min_length=2, max_length=80)
+    blocks_decision: bool = False
+    note: str | None = Field(None, max_length=300)
+
+
+class RequiredInfo(BaseModel):
+    id: str = Field(pattern=r"^[a-z0-9_]{2,40}$")
     label: str = Field(min_length=2, max_length=120)
-    any_of: list[str] = Field(min_length=1)
+    hint: str | None = Field(None, max_length=200)
+    group: str | None = Field(None, max_length=80)
+    stage: str | None = None
 
 
 class RequiredField(BaseModel):
@@ -58,7 +88,10 @@ class RequiredField(BaseModel):
 class Profile(BaseModel):
     label: str = Field(min_length=2, max_length=80)
     tax_id_kind: str = Field(pattern="^(cpf|cnpj)$")
+    source: str | None = Field(None, max_length=200)
+    stages: list[Stage] = Field(default_factory=list)
     required: list[Requirement]
+    required_info: list[RequiredInfo] = Field(default_factory=list)
     required_fields: list[RequiredField] = Field(default_factory=list)
 
 
@@ -122,7 +155,7 @@ class Consistency(BaseModel):
 
 VALIDATORS = {
     "document_types": lambda v: {k: DocType.model_validate(x).model_dump(exclude_none=True) for k, x in v.items()},
-    "requirement_profiles": lambda v: {k: Profile.model_validate(x).model_dump() for k, x in v.items()},
+    "requirement_profiles": lambda v: {k: Profile.model_validate(x).model_dump(exclude_none=True) for k, x in v.items()},
     "priority_rules": lambda v: [PriorityRule.model_validate(x).model_dump(exclude_none=True) for x in v],
     "processing": lambda v: Processing.model_validate(v).model_dump(),
     "watcher": lambda v: Watcher.model_validate(v).model_dump(),
@@ -181,7 +214,7 @@ def write_setting(key: str, value: Any = Body(...), p: Principal = Depends(ADMIN
         types = set(get_setting(db, "document_types"))
         for prof in clean.values():
             for req in prof["required"]:
-                unknown = set(req["any_of"]) - types
+                unknown = (set(req.get("any_of", [])) | {t for opt in req.get("options", []) for t in opt}) - types
                 if unknown:
                     raise ApiError(422, "unknown_type", f"Tipos desconhecidos em {req['label']}: {', '.join(sorted(unknown))}")
     before = get_setting(db, key)

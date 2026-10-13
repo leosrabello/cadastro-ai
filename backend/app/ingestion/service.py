@@ -58,7 +58,7 @@ def ingest(
 ) -> IngestResult:
     """Screen, store and queue one file. Raises RejectedFile, DuplicateDocument, RegistrationClosed."""
     assert source in SOURCES
-    if registration is not None and registration.status in RegStatus.FINAL:
+    if registration is not None and registration.status in RegStatus.CLOSED:
         raise RegistrationClosed()
 
     screened = screen(data, filename)
@@ -95,7 +95,7 @@ def ingest(
     job = ProcessingJob(document_id=doc.id, idempotency_key=job_key(doc.id, sha, 1), requested_by_id=actor.id if actor else None)
     db.add(job)
 
-    if registration is not None and registration.status not in (RegStatus.PROCESSING,):
+    if registration is not None and registration.status not in (RegStatus.PROCESSING, *RegStatus.FINAL):
         registration.status = RegStatus.PROCESSING
 
     audit.record(

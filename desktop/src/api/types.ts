@@ -155,10 +155,40 @@ export interface DocumentDetail extends DocumentBrief {
 export interface ChecklistItem {
   id: string;
   label: string;
+  group?: string | null;
+  stage?: string | null;
+  note?: string | null;
+  year?: number | null;
+  required?: boolean;
+  blocking?: boolean;
+  per_partner?: boolean;
+  received?: number;
+  state_note?: string | null;
+  documents?: { id: string; name: string }[];
   accepted_types: string[];
-  state: "ok" | "missing" | "unclassified" | "processing" | "failed" | "expired" | "too_old" | "invalid" | "needs_review";
+  state: "ok" | "missing" | "unclassified" | "processing" | "failed" | "expired" | "too_old" | "invalid" | "needs_review" | "optional";
   document_id: string | null;
   document_name: string | null;
+}
+
+export interface InfoItem {
+  id: string;
+  label: string;
+  hint?: string | null;
+  group?: string | null;
+  stage?: string | null;
+  state: "ok" | "missing";
+  value: string | null;
+  blocking: boolean;
+}
+
+export interface StageSummary {
+  id: string;
+  label: string;
+  note?: string | null;
+  current: boolean;
+  done: number;
+  total: number;
 }
 
 export interface Decision {
@@ -187,6 +217,9 @@ export interface RegistrationDetail extends RegistrationRow {
   reference_fields: Record<string, string>;
   checklist: {
     documents?: ChecklistItem[];
+    info?: InfoItem[];
+    stages?: StageSummary[];
+    stage?: string | null;
     fields?: { field: string; label: string; state: "ok" | "missing"; value: string | null; document_id: string | null }[];
     open_findings?: number;
     blocking_findings?: number;

@@ -145,7 +145,8 @@ def test_digital_cnpj_card_and_contract_for_pj(client, analyst):
     assert "JOAO CARLOS MENDES" in _fields(contrato)["socios"]["value"]
     d = _detail(client, analyst, reg["id"])
     states = {i["id"]: i["state"] for i in d["checklist"]["documents"]}
-    assert states["representante"] == "missing" and states["cnpj"] == "ok" and states["contrato"] == "ok"
+    assert states["societario"] == "ok" and states["visita"] == "missing"
+    assert {i["field"]: i["state"] for i in d["checklist"]["fields"]}["cnpj"] == "ok"
 
 
 def test_original_is_stored_unchanged_and_encrypted(client, analyst):

@@ -111,3 +111,32 @@ def name_tokens(name: str, ignore: set[str] | None = None) -> list[str]:
 def clean_name(text: str) -> str:
     t = re.sub(r"[^A-Za-zÀ-ÿ' ]", " ", text)
     return re.sub(r"\s+", " ", t).strip().upper()
+
+
+# identifiers (CPF 942.228.949-15, CNPJ 78.827.730/0001-58) are excluded by the lookahead
+MONEY_RE = re.compile(r"(?<![\d.,/])(-?\s?R?\$?\s?-?\d{1,3}(?:\.\d{3})+(?:,\d{2})?|-?\s?R?\$?\s?-?\d+,\d{2})(?![\d/]|-\d|\.\d)")
+MONTH_NAMES = ["JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"]
+
+
+def parse_money(text: str) -> float | None:
+    """Brazilian money: '1.234.567,89', 'R$ 13.088.786', '-R$ 997.712'. Returns None if not a number."""
+    t = text.replace("R$", "").replace(" ", "").strip()
+    negative = t.startswith("-") or t.endswith("-")
+    t = t.strip("-")
+    if not re.fullmatch(r"\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?", t):
+        return None
+    value = float(t.replace(".", "").replace(",", "."))
+    return -value if negative else value
+
+
+def format_money(value: float) -> str:
+    s = f"{abs(value):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"-R$ {s}" if value < 0 else f"R$ {s}"
+
+
+def month_index(token: str) -> int | None:
+    t = fold(token)
+    for i, m in enumerate(MONTH_NAMES):
+        if t.startswith(m[:3]) and (len(t) <= 4 or m.startswith(t[: len(m)])):
+            return i + 1
+    return None

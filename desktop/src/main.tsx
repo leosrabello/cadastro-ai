@@ -18,6 +18,7 @@ import { Login } from "./screens/Login";
 import { Queue } from "./screens/Queue";
 import { RegistrationDetail } from "./screens/RegistrationDetail";
 import { Registrations } from "./screens/Registrations";
+import { Report } from "./screens/Report";
 import { Settings } from "./screens/Settings";
 
 const queryClient = new QueryClient({
@@ -47,6 +48,7 @@ function Routed() {
         <Route path="fila" element={<Queue />} />
         <Route path="cadastros" element={<Registrations />} />
         <Route path="cadastros/:id" element={<RegistrationDetail />} />
+        <Route path="cadastros/:id/relatorio" element={<Report />} />
         <Route path="documentos/:id" element={<DocumentReview />} />
         <Route path="entrada" element={<Inbox />} />
         <Route path="historico" element={<History />} />

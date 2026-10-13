@@ -7,6 +7,7 @@ every human-confirmed field and every reviewer resolution, and replaces only mac
 
 import hashlib
 import io
+import re
 import logging
 import time
 import uuid
@@ -33,7 +34,7 @@ from app.pipeline import ai as ai_mod
 from app.pipeline import classify, completeness, consistency, extract, forensics, injection, ocr, priority, rendering, validity
 from app.pipeline.ai.base import AiRequest
 from app.pipeline.findings import FindingDraft, evidence, sync
-from app.pipeline.normalize import digits, format_cnpj, format_cpf, parse_date, valid_cnpj, valid_cpf
+from app.pipeline.normalize import digits, format_cnpj, format_cpf, format_money, parse_date, parse_money, valid_cnpj, valid_cpf
 from app.settings_store import get_setting
 from app.storage import StorageCorrupted, StorageUnavailable, get_store
 
@@ -218,6 +219,7 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
         ))
 
     # AI-assisted analysis: optional, bounded, validated, never decisive
+    ai_summary = None
     ai_provider = ai_mod.get_provider() if processing.get("ai_enabled") else None
     if ai_provider is None:
         doc.ai_status, doc.ai_error = "skipped", ("IA desativada nas configurações" if not processing.get("ai_enabled") else "Nenhum provedor de IA configurado")
@@ -242,6 +244,7 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
         try:
             result = ai_provider.analyze(req)
             doc.ai_status, doc.ai_error = "done", None
+            ai_summary = result.analysis.summary
             metrics.update(ai_model=result.model, ai_input_tokens=result.input_tokens, ai_output_tokens=result.output_tokens, ai_cost_usd=result.cost_usd)
             doc_type, type_conf, type_source, fields, ai_drafts = _merge_ai(doc, result.analysis, doc_type, type_conf, type_source, fields, doc_types, pages)
             drafts += ai_drafts
@@ -259,7 +262,8 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
             ))
 
     doc.doc_type, doc.doc_type_confidence, doc.doc_type_source = doc_type, type_conf, type_source
-    doc.classification = {"scores": cls.scores, "matched": cls.matched, "rules_type": cls.doc_type, "rules_confidence": cls.confidence}
+    doc.classification = {"scores": cls.scores, "matched": cls.matched, "rules_type": cls.doc_type, "rules_confidence": cls.confidence,
+                          "ai_summary": ai_summary}
     doc.issuer = (fields.get("orgao_expedidor").value if fields.get("orgao_expedidor") else None) or (
         fields.get("emissor").value if fields.get("emissor") else None) or doc.issuer
 
@@ -379,7 +383,17 @@ def _normalize_ai_value(name: str, value: str) -> tuple[str | None, bool | None]
         return format_cnpj(d), valid_cnpj(d)
     if name == "nome":
         return v.upper(), True
+    if name == "exercicio":
+        m = re.search(r"20\d{2}", v)
+        return (m.group(0), True) if m else (None, None)
+    if name in MONEY_FIELDS:
+        amount = parse_money(v)
+        return (format_money(amount), True) if amount is not None else (None, None)
     return v, True
+
+
+MONEY_FIELDS = {"receita_liquida", "lucro_liquido", "patrimonio_liquido", "ativo_total", "faturamento_total",
+                "endividamento_total", "patrimonio_declarado", "dividas_onus", "lucros_dividendos"}
 
 
 def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types, pages):
@@ -464,7 +478,7 @@ def _suggest_registration(db: Session, doc: Document, processing: dict) -> None:
     ids = {digits(f.value) for f in doc.fields if f.name in ("cpf", "cnpj") and f.value and f.valid}
     if not ids:
         return
-    matches = db.execute(select(Registration).where(Registration.tax_id.in_(ids), Registration.status.notin_(RegStatus.FINAL))).scalars().all()
+    matches = db.execute(select(Registration).where(Registration.tax_id.in_(ids), Registration.status.notin_(RegStatus.CLOSED))).scalars().all()
     if len(matches) != 1:
         return
     reg = matches[0]
@@ -496,7 +510,8 @@ def analyze_registration(db: Session, registration_id: uuid.UUID) -> None:
     ).scalars().all()
     pseudo = doc_level_open + [SimpleNamespace(severity=d.severity, status=FindingStatus.OPEN) for d in cons]
     labels = {k: v.get("label", k) for k, v in doc_types.items()}
-    checklist, comp, ready = completeness.build(profile, list(docs), pseudo, labels)
+    checklist, comp, ready = completeness.build(profile, list(docs), pseudo, labels, reg.reference_fields or {}, today(),
+                                                approved=reg.status == RegStatus.APPROVED)
     sync(db, registration_id=reg.id, document_id=None, sources={"rule"}, drafts=cons + comp, document_scope=False)
 
     all_findings = db.execute(select(Finding).where(Finding.registration_id == reg.id)).scalars().all()

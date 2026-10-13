@@ -8,7 +8,7 @@
 .decision-note[data-status="pending_documents"] { border-left-color: var(--warn); }
 
 .detail-grid { display: grid; grid-template-columns: 340px 1fr; gap: 36px; align-items: start; }
-.slip-col { position: sticky; top: 20px; }
+.slip-col { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; }
 .detail-main { display: grid; gap: 44px; min-width: 0; }
 .section-head { margin-bottom: 12px; }
 
@@ -61,3 +61,16 @@
 .trail li:nth-child(odd) { background: var(--surface); }
 .checks { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
 .checks input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.slip-stages { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 12px; }
+.slip-stages button { display: grid; gap: 0; text-align: left; padding: 8px 10px; border: 0; border-radius: var(--radius); background: #ececea; color: var(--paper-ink); cursor: pointer; }
+.slip-stages button .num { font-size: var(--step-meta); color: var(--paper-muted); }
+.slip-stages button[aria-selected="true"] { background: var(--paper-ink); color: var(--paper); }
+.slip-stages button[aria-selected="true"] .num { color: #bdbdbd; }
+.slip-stage-note { margin: -4px 0 12px; }
+.slip-group + .slip-group { margin-top: 18px; }
+.slip-group-name { color: var(--paper-muted); font-size: var(--step-meta); margin-bottom: 8px; }
+.slip-docs { display: flex; flex-wrap: wrap; gap: 2px 10px; }
+.slip-edit { justify-self: start; color: var(--paper-ink); }
+.slip-fields { margin-top: 18px; }
+.slip .mark[data-tone="hollow"]::before { border-color: var(--paper-muted); }

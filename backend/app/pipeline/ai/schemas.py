@@ -5,7 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 FIELD_NAMES = [
     "nome", "cpf", "cnpj", "rg_numero", "cnh_registro", "data_nascimento", "data_expedicao",
     "data_emissao", "validade", "orgao_expedidor", "endereco", "cep", "razao_social",
-    "situacao_cadastral", "socios", "data_registro", "emissor",
+    "situacao_cadastral", "socios", "data_registro", "emissor", "exercicio", "receita_liquida", "lucro_liquido",
+    "patrimonio_liquido", "ativo_total", "faturamento_total", "periodo_fim", "endividamento_total", "crc_contador",
+    "assinatura_representante", "patrimonio_declarado", "dividas_onus", "lucros_dividendos", "regime_bens",
 ]
 
 
