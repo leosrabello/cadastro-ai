@@ -47,6 +47,21 @@ def test_valid_cnh_is_read_classified_and_valid(client, analyst):
     assert doc["issuer"].startswith("DETRAN")
 
 
+def test_cnh_digital_pdf_reads_the_card_picture_under_the_text_layer(client, analyst):
+    p = syn.person(11)
+    reg = new_registration(client, analyst, p.name, p.cpf)
+    card = syn.cnh(p.name, p.cpf, p.cnh, p.birth, today() - timedelta(days=300), today() + timedelta(days=1500))
+    r = upload(client, analyst, reg["id"], "CNH-e.pdf", syn.cnh_digital_pdf(card), "application/pdf")
+    assert r.status_code == 201, r.text
+    doc = _doc(client, analyst, r.json()["results"][0]["document"]["id"])
+    assert doc["doc_type"] == "cnh"
+    f = _fields(doc)
+    assert f["cpf"]["value"] == p.cpf
+    assert f["nome"]["value"] == p.name
+    assert f["validade"]["value"] == (today() + timedelta(days=1500)).isoformat()
+    assert "TEXT_LAYER_MISMATCH" not in _codes(doc["findings"])
+
+
 def test_expired_cnh_produces_explained_finding(client, analyst):
     p = syn.person(2)
     reg = new_registration(client, analyst, p.name, p.cpf)

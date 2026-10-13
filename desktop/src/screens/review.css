@@ -1,12 +1,12 @@
 /* The document review workspace: the original on the dark stage, the analysis beside it. */
 .review { display: grid; grid-template-columns: 1fr 440px; height: 100%; min-height: 0; }
-.stage { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
+.stage { display: grid; grid-template-rows: auto 1fr; grid-template-columns: minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
 .stage-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 20px; flex-wrap: wrap; }
 .stage-tools { gap: 6px; }
 .stage-gap { width: 12px; }
-.viewer { overflow: auto; min-height: 0; padding: 8px 28px 40px; }
+.viewer { overflow: auto; min-height: 0; padding: 8px 28px 40px; container-type: inline-size; }
 .sheet-wrap { display: flex; justify-content: center; min-width: min-content; }
-.sheet { position: relative; max-width: none; transition: width 160ms var(--ease); }
+.sheet { position: relative; flex: none; width: calc(var(--zoom, 1) * 100cqw); max-width: none; transition: width 160ms var(--ease); }
 .sheet img { display: block; width: 100%; height: auto; user-select: none; border-radius: 2px; }
 .box { position: absolute; pointer-events: none; border-radius: 3px; }
 /* annotations drawn over the document image; the dimming around the lit region is the overlay itself */

@@ -33,7 +33,7 @@ class Line:
 @dataclass
 class PageText:
     index: int
-    source: str  # ocr:<provider> | pdf_text
+    source: str  # ocr:<provider> | pdf_text | pdf_text+ocr:<provider>
     lines: list[Line] = field(default_factory=list)
 
     @property
@@ -66,6 +66,28 @@ def lines_from_words(words: list[Word]) -> list[Line]:
         ws = sorted(by_line[key], key=lambda w: w.bbox[0])
         lines.append(Line(text=" ".join(w.text for w in ws), words=ws))
     return lines
+
+
+def merge_image_text(text_layer: PageText, ocr_page: PageText, image_boxes, min_conf: float = 0.5) -> PageText:
+    """Adds what OCR read inside a PDF's embedded pictures (a CNH Digital is a picture of the card
+    under a text layer that only carries the boilerplate). Words the text layer already has are kept
+    from the text layer."""
+    def inside(b, box, pad=0.0):
+        cx, cy = (b[0] + b[2]) / 2, (b[1] + b[3]) / 2
+        return box[0] - pad <= cx <= box[2] + pad and box[1] - pad <= cy <= box[3] + pad
+
+    layer_words = [w for line in text_layer.lines for w in line.words]
+    extra = [
+        Word(text=w.text, conf=w.conf, bbox=w.bbox, line=10**9 + w.line)
+        for line in ocr_page.lines
+        for w in line.words
+        if w.conf >= min_conf
+        and any(inside(w.bbox, box) for box in image_boxes)
+        and not any(inside(w.bbox, lw.bbox, pad=0.004) for lw in layer_words)
+    ]
+    if not extra:
+        return text_layer
+    return PageText(index=text_layer.index, source=f"pdf_text+{ocr_page.source}", lines=lines_from_words(layer_words + extra))
 
 
 class OcrProvider(Protocol):

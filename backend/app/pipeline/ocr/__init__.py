@@ -1,5 +1,5 @@
 from app.config import get_settings
-from app.pipeline.ocr.base import OcrFailed, OcrProvider, OcrUnavailable, PageText
+from app.pipeline.ocr.base import OcrFailed, OcrProvider, OcrUnavailable, PageText, merge_image_text
 
 _override: OcrProvider | None = None
 
@@ -25,4 +25,4 @@ def get_provider() -> OcrProvider:
     return TesseractOcr(lang=s.tesseract_lang)
 
 
-__all__ = ["OcrFailed", "OcrProvider", "OcrUnavailable", "PageText", "get_provider", "set_provider"]
+__all__ = ["OcrFailed", "OcrProvider", "OcrUnavailable", "PageText", "merge_image_text", "get_provider", "set_provider"]

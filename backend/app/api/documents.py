@@ -176,7 +176,7 @@ def document_page(did: uuid.UUID, page: int, p: Principal = Depends(ANY_ROLE), d
     if page < 0 or page >= (doc.page_count or 1):
         raise ApiError(404, "not_found", "Página inexistente.")
     data = _read_original(doc)
-    png = render_page_png(data, doc.mime_type, page, dpi=130)
+    png = render_page_png(data, doc.mime_type, page, dpi=200)  # sharp enough to read small print at 300% zoom
     if page == 0:
         audit.record(db, "document.viewed", actor=p.user, entity_type="document", entity_id=doc.id, registration_id=doc.registration_id, ip=p.ip)
         db.commit()

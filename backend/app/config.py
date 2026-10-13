@@ -27,7 +27,7 @@ class Settings(BaseSettings):
 
     max_upload_mb: int = Field(25, alias="MAX_UPLOAD_MB")
     max_pages: int = Field(15, alias="MAX_PAGES")
-    render_dpi: int = Field(200, alias="RENDER_DPI")
+    render_dpi: int = Field(300, alias="RENDER_DPI")  # small print (CNH Digital, scanned IDs) needs 300
 
     ocr_provider: str = Field("tesseract", alias="OCR_PROVIDER")
     tesseract_lang: str = Field("por", alias="TESSERACT_LANG")

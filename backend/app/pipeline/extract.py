@@ -45,7 +45,7 @@ class FieldValue:
 
 
 LABELS: dict[str, list[str]] = {
-    "nome": ["NOME COMPLETO", "NOME DO TITULAR", "NOME DO CLIENTE", "NOME", "TITULAR", "CLIENTE"],
+    "nome": ["NOME E SOBRENOME", "NOME COMPLETO", "NOME DO TITULAR", "NOME DO CLIENTE", "NOME", "TITULAR", "CLIENTE"],
     "cpf": ["CPF"],
     "cnpj": ["NUMERO DE INSCRICAO", "CNPJ"],
     "rg_numero": ["REGISTRO GERAL", "N DO RG", "NO RG", "RG"],
@@ -63,7 +63,9 @@ LABELS: dict[str, list[str]] = {
 }
 
 NAME_EXCLUDE = ("MAE", "PAI", "FILIACAO", "EMPRESARIAL", "SOCIAL", "FANTASIA", "SOCIO", "MUNICIPIO")
-ALL_LABEL_WORDS = sorted({lbl for labels in LABELS.values() for lbl in labels}, key=len, reverse=True)
+# column headings that share a line with a label on card layouts (CNH: "NOME E SOBRENOME  1ª HABILITAÇÃO")
+COLUMN_HEADINGS = ("HABILITACAO", "CAT HAB", "ACC", "ASSINATURA")
+ALL_LABEL_WORDS = sorted({lbl for labels in LABELS.values() for lbl in labels} | set(COLUMN_HEADINGS), key=len, reverse=True)
 ISSUER_RE = re.compile(r"\b(SSP|SESP|SDS|PC|IFP|IIRGD|DETRAN|SENATRAN|DENATRAN|DGPC|SJS|SSPDS|POLICIA CIVIL)\s*[-/ ]?\s*([A-Z]{2})?\b")
 SITUACOES = ("ATIVA", "BAIXADA", "SUSPENSA", "INAPTA", "NULA")
 UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())

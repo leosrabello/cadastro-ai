@@ -238,7 +238,7 @@ function Viewer({ src, loading, error, zoom, lit, focus, boxes, purged }: {
       const x = sh.offsetLeft + focus[0] * sh.offsetWidth - s.clientWidth / 3;
       const y = sh.offsetTop + focus[1] * sh.offsetHeight - s.clientHeight / 3;
       s.scrollTo({ left: x, top: y, behavior: "smooth" });
-    }, 60);
+    }, 200); // after the zoom transition settles
     return () => clearTimeout(t);
   }, [focus, zoom, src]);
 
@@ -249,7 +249,7 @@ function Viewer({ src, loading, error, zoom, lit, focus, boxes, purged }: {
         <div className="sheet-wrap"><Skeleton h={520} w={760} /></div>
       ) : (
         <div className="sheet-wrap">
-          <div className="sheet" ref={sheet} style={{ width: `${zoom * 100}%` }}>
+          <div className="sheet" ref={sheet} style={{ ["--zoom" as string]: zoom }}>
             <img src={src} alt="Página do documento original" draggable={false} />
             {boxes.map((b) => <Box key={b.key} bbox={b.bbox} kind="field" title={b.label} />)}
             {lit && <Box bbox={lit} kind="lit" />}

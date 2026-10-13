@@ -1,5 +1,5 @@
 import io
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import fitz
 from PIL import ExifTags, Image, ImageOps
@@ -12,6 +12,7 @@ class RenderedPage:
     index: int
     image: Image.Image
     text_layer: PageText | None  # only for PDFs with embedded text
+    image_boxes: list[tuple[float, float, float, float]] = field(default_factory=list)  # embedded pictures, as page fractions
 
 
 @dataclass
@@ -32,7 +33,7 @@ def render_page_png(data: bytes, mime: str, page: int, dpi: int = 110) -> bytes:
             return doc[page].get_pixmap(dpi=dpi).tobytes("png")
     with Image.open(io.BytesIO(data)) as img:
         img = ImageOps.exif_transpose(img).convert("RGB")
-        img.thumbnail((1800, 1800))
+        img.thumbnail((2600, 2600))
         buf = io.BytesIO()
         img.save(buf, format="PNG")
         return buf.getvalue()
@@ -58,7 +59,12 @@ def _render_pdf(data: bytes, dpi: int, max_pages: int) -> Rendered:
             if len(words) >= 5:
                 meta["has_text_layer"] = True
                 text_layer = PageText(index=i, source="pdf_text", lines=lines_from_words(words))
-            pages.append(RenderedPage(index=i, image=image, text_layer=text_layer))
+            boxes = []
+            for info in page.get_image_info():
+                x0, y0, x1, y1 = info["bbox"]
+                if (x1 - x0) * (y1 - y0) >= 0.01 * pw * ph:  # ignore logos and seals
+                    boxes.append((max(0.0, x0 / pw), max(0.0, y0 / ph), min(1.0, x1 / pw), min(1.0, y1 / ph)))
+            pages.append(RenderedPage(index=i, image=image, text_layer=text_layer, image_boxes=boxes))
     return Rendered(pages=pages, metadata=meta)
 
 

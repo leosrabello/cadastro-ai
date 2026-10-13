@@ -192,6 +192,25 @@ def image_pdf(canvas: Canvas, producer: str | None = None, hidden_text: str | No
     return out
 
 
+def cnh_digital_pdf(card: Canvas) -> bytes:
+    """Like the CNH Digital issued by SENATRAN: an A4 page whose text layer carries only the header
+    and the signature notice, with the card itself as a picture."""
+    doc = fitz.open()
+    page = doc.new_page(width=595, height=842)
+    for i, line in enumerate(["REPÚBLICA FEDERATIVA DO BRASIL", "MINISTÉRIO DOS TRANSPORTES", "SECRETARIA NACIONAL DE TRÂNSITO - SENATRAN"]):
+        page.insert_text((60, 30 + i * 12), line, fontsize=9)
+    page.insert_image(fitz.Rect(30, 60, 330, 255), stream=card.png())
+    for i, line in enumerate([
+        "Documento assinado com certificado digital em conformidade",
+        "com a Medida Provisória nº 2200-2/2001. Sua validade poderá",
+        "ser confirmada por meio do programa Assinador Serpro.",
+    ]):
+        page.insert_text((340, 340 + i * 11), line, fontsize=7)
+    out = doc.tobytes()
+    doc.close()
+    return out
+
+
 @dataclass
 class Person:
     name: str

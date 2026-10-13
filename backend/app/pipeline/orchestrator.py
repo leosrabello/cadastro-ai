@@ -178,7 +178,7 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
         except ocr.OcrFailed as exc:
             raise PermanentError(f"OCR falhou: {exc}") from exc
         if page.text_layer is not None:
-            pages.append(page.text_layer)
+            pages.append(ocr.merge_image_text(page.text_layer, ocr_page, page.image_boxes))
             if processing.get("compare_text_layer", True):
                 integrity += forensics.text_layer_findings(page.text_layer, ocr_page, doc.id)
         else:
