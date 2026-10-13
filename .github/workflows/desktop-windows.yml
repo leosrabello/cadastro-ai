@@ -1,0 +1,55 @@
+# Builds the Windows installers (NSIS .exe and .msi). Tauri cannot produce Windows installers
+# from macOS or Linux reliably, so the official build runs on a Windows runner.
+name: desktop-windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["desktop-v*"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      HAS_CERT: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - run: npm ci
+      - name: Build installers
+        env:
+          # Default server address baked into the build; employees can change it on the sign-in screen.
+          VITE_API_URL: ${{ vars.CADASTRO_API_URL }}
+        run: npx tauri build --bundles nsis,msi
+      # Code signing: when WINDOWS_CERTIFICATE (base64 .pfx) and WINDOWS_CERTIFICATE_PASSWORD are set,
+      # sign with signtool before upload. See docs/desktop.md.
+      - name: Sign installers
+        if: env.HAS_CERT == 'true'
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        shell: pwsh
+        run: |
+          [IO.File]::WriteAllBytes("cert.pfx", [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
+          Get-ChildItem src-tauri/target/release/bundle -Recurse -Include *.exe,*.msi | ForEach-Object {
+            & $signtool.FullName sign /f cert.pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+          }
+          Remove-Item cert.pfx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cadastro-ai-windows
+          path: |
+            desktop/src-tauri/target/release/bundle/nsis/*.exe
+            desktop/src-tauri/target/release/bundle/msi/*.msi

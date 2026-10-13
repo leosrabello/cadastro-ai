@@ -1,0 +1,31 @@
+.settings-tabs { margin-bottom: 28px; flex-wrap: wrap; }
+.settings-form { display: grid; gap: 16px; max-width: 760px; }
+.settings-form.wide { max-width: none; }
+.settings-explain { max-width: 75ch; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.settings input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+/* "Sentences with switches": full-width bands butted together; on, a band fills with a field colour. */
+.sentences { display: grid; gap: 0; margin: 0 -40px; }
+.sentence-band {
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 24px; min-height: 132px; padding: 22px 40px;
+  background: var(--bg); transition: background-color 260ms var(--ease), color 260ms var(--ease);
+}
+.sentence { font-size: clamp(22px, 2.2vw, 30px); font-weight: 500; letter-spacing: -0.02em; line-height: 1.15; color: var(--muted); transition: color 260ms var(--ease); }
+.consequence { margin-top: 6px; color: var(--muted); max-width: 70ch; }
+.sentence-band .switch { font-size: clamp(22px, 2.2vw, 30px); }
+.sentence-band[data-on="true"][data-field="paper"] { background: var(--paper); color: var(--paper-ink); }
+.sentence-band[data-on="true"][data-field="accent"] { background: var(--accent); color: var(--accent-ink); }
+.sentence-band[data-on="true"] .sentence { color: inherit; }
+.sentence-band[data-on="true"] .consequence { color: inherit; opacity: 0.78; }
+.sentence-band[data-on="false"]:nth-child(even) { background: var(--surface); }
+
+.req-profile { display: grid; gap: 4px; }
+.req-profile h2 { margin-bottom: 8px; }
+.req-row { display: grid; grid-template-columns: 280px 1fr; gap: 16px; padding: 12px 14px; background: var(--surface); border-radius: var(--radius); }
+.req-types { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.priority-row { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 8px 14px; background: var(--surface); border-radius: var(--radius); }
+.facts { display: grid; gap: 2px; margin: 0; max-width: 860px; }
+.facts > div { display: grid; grid-template-columns: 260px 1fr; gap: 16px; padding: 10px 14px; background: var(--surface); border-radius: var(--radius); }
+.facts dd { margin: 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

@@ -1,0 +1,23 @@
+name: backend
+
+on:
+  push:
+    paths: ["backend/**", "docker-compose.yml", ".github/workflows/backend.yml"]
+  pull_request:
+    paths: ["backend/**"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure throwaway secrets
+        run: |
+          cp .env.example .env
+          sed -i "s|^POSTGRES_PASSWORD=$|POSTGRES_PASSWORD=$(openssl rand -hex 16)|" .env
+          sed -i "s|^JWT_SECRET=$|JWT_SECRET=$(openssl rand -hex 32)|" .env
+          sed -i "s|^STORAGE_ENCRYPTION_KEY=$|STORAGE_ENCRYPTION_KEY=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" .env
+      - run: docker compose build api
+      - run: docker compose up -d db redis
+      - run: docker compose run --rm api pytest -p no:warnings
+      - run: docker compose run --rm api python scripts/evaluate.py --n 40

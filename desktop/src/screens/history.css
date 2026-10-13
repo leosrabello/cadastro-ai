@@ -1,0 +1,19 @@
+/* "Day tabs, banded agenda": stacked day tabs on the left, the day's events as alternating tone bands. */
+.history-verify { display: grid; justify-items: end; gap: 6px; max-width: 420px; text-align: right; }
+.agenda { display: grid; grid-template-columns: 150px 1fr; gap: 40px; align-items: start; }
+.day-tabs { display: grid; gap: 6px; position: sticky; top: 20px; }
+.day-tab { display: grid; gap: 0; height: 64px; align-content: center; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface); text-align: left; cursor: pointer; transition: background-color 120ms var(--ease); }
+.day-tab:hover { background: var(--surface-2); }
+.day-tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.day-tab[aria-selected="true"] .day-date { color: #4a4a4a; }
+.day-name { font-size: var(--step-ui); font-weight: 600; text-transform: none; }
+.day-name::first-letter { text-transform: uppercase; }
+.day-date { font-size: var(--step-meta); color: var(--muted); }
+.bands { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.band { display: grid; grid-template-columns: 96px 1fr minmax(160px, auto); gap: 18px; align-items: center; min-height: 64px; padding: 10px 20px; border-radius: var(--radius); background: var(--surface); }
+.band:nth-child(even) { background: var(--surface-2); }
+.band-time { font-size: var(--step-lead); font-weight: 500; }
+.band-what { display: grid; min-width: 0; }
+.band-title { font-size: var(--step-lead); font-weight: 500; letter-spacing: -0.01em; }
+.band-what .meta { overflow-wrap: anywhere; }
+.band-who { display: grid; justify-items: end; text-align: right; font-size: 14px; }

@@ -1,0 +1,13 @@
+.env
+watch/
+.taste-skill/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+desktop/dist/
+desktop/src-tauri/target/
+desktop/src-tauri/gen/
+samples/generated/
+eval-report/
+.DS_Store

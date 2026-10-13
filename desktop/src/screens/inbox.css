@@ -1,0 +1,10 @@
+.inbox-list { display: grid; gap: 4px; }
+.inbox-item { display: grid; grid-template-columns: 1fr 380px; gap: 28px; padding: 18px 20px; background: var(--surface); border-radius: var(--radius); }
+.inbox-doc { display: grid; gap: 4px; align-content: start; }
+.inbox-read { font-variant-numeric: tabular-nums; }
+.inbox-assoc { display: grid; gap: 8px; align-content: start; }
+.suggestion { display: grid; gap: 2px; padding: 12px 14px; background: var(--surface-2); border-radius: var(--radius); border-left: 4px solid var(--accent); }
+.suggestion .btn { justify-self: start; margin-top: 8px; }
+.assoc-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.assoc-btn { width: 100%; display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border: 0; border-radius: var(--radius); background: var(--surface-2); cursor: pointer; text-align: left; }
+.assoc-btn:hover { background: #2e2e2e; }

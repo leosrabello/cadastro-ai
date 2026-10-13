@@ -1,0 +1,34 @@
+/* "Large marks on tiles": filled tiles four across, 8px gaps; the first, twice as wide, in the accent. */
+.board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.tile {
+  display: flex; flex-direction: column; justify-content: flex-start; gap: 2px; min-height: 168px; padding: 20px 22px;
+  background: var(--surface); border-radius: var(--radius); text-decoration: none; color: var(--ink);
+  transition: background-color 140ms var(--ease);
+}
+.tile:hover { background: var(--surface-2); }
+.tile-n { font-size: var(--step-mark); font-weight: 600; letter-spacing: -0.03em; line-height: 1; margin-bottom: auto; font-variation-settings: "opsz" 96; }
+.tile-label { font-weight: 600; margin-top: 18px; }
+.tile[data-tone="danger"] .tile-n { color: var(--danger); }
+.tile[data-tone="warn"] .tile-n { color: var(--warn); }
+.tile-lead { grid-column: span 2; background: var(--accent); color: var(--accent-ink); justify-content: space-between; }
+.tile-lead:hover { background: #e6ffb8; }
+.tile-lead-title { font-size: var(--step-title); letter-spacing: -0.02em; }
+.tile-lead-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.tile-lead .tile-n { margin: 0; }
+.tile-lead-cta { font-weight: 600; text-decoration: underline; text-underline-offset: 0.2em; }
+
+.dash-cols { display: grid; grid-template-columns: 1.4fr 1fr; gap: 40px; margin-top: 44px; }
+.next-list, .done-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.next-row {
+  width: 100%; display: grid; grid-template-columns: 48px 1fr auto; gap: 14px; align-items: center; text-align: left;
+  padding: 12px 14px; border: 0; border-radius: var(--radius); background: var(--surface); cursor: pointer;
+  transition: background-color 120ms var(--ease);
+}
+.next-row:hover { background: var(--surface-2); }
+.next-score { font-size: var(--step-lead); font-weight: 600; }
+.next-body { display: grid; }
+.next-name { font-weight: 600; }
+.next-why { color: var(--muted); font-size: var(--step-meta); text-align: right; max-width: 34ch; }
+.done-list a { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; padding: 10px 2px; text-decoration: none; align-items: center; }
+.done-list a:hover span:first-child { text-decoration: underline; }
+.system-line { margin-top: 48px; max-width: 110ch; }
