@@ -74,3 +74,20 @@
 .slip-edit { justify-self: start; color: var(--paper-ink); }
 .slip-fields { margin-top: 18px; }
 .slip .mark[data-tone="hollow"]::before { border-color: var(--paper-muted); }
+
+/* the batch being sent: one line, the list on demand */
+.upload-summary { display: grid; grid-template-columns: 120px 1fr auto auto; gap: 14px; align-items: center; margin-top: 8px; padding: 10px 12px; background: var(--surface); border-radius: var(--radius); }
+.upload-total { height: 4px; }
+
+/* documents folded by subject */
+.doc-groups { display: grid; gap: 6px; margin-top: 12px; }
+.doc-groups-tools { display: flex; justify-content: flex-end; }
+.doc-group { background: var(--surface); border-radius: var(--radius); }
+.doc-group-head { width: 100%; display: grid; grid-template-columns: 14px auto auto 1fr; gap: 12px; align-items: center; padding: 12px 14px; background: none; border: 0; color: var(--ink); text-align: left; cursor: pointer; border-radius: var(--radius); transition: background-color 120ms var(--ease); }
+.doc-group-head:hover { background: var(--surface-2); }
+.doc-group-chevron { width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform 160ms var(--ease); justify-self: center; }
+.doc-group[data-open="true"] .doc-group-chevron { transform: rotate(45deg); }
+.doc-group-state { display: flex; gap: 14px; justify-content: flex-end; flex-wrap: wrap; }
+.doc-group .docs-table { margin-top: 0; }
+.doc-group .docs-table th:first-child, .doc-group .docs-table td:first-child { padding-left: 40px; }
+.doc-group-body { padding: 4px 12px 12px; }

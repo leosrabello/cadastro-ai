@@ -21,6 +21,7 @@ export function UploadZone({ registrationId, disabled }: { registrationId: strin
   const maxBytes = (meta?.limits.max_upload_mb ?? 25) * 1024 * 1024;
   const [items, setItems] = useState<Item[]>([]);
   const [over, setOver] = useState(false);
+  const [showList, setShowList] = useState(false);
   const running = useRef(0);
 
   const patch = (key: string, p: Partial<Item>) => setItems((xs) => xs.map((x) => (x.key === key ? { ...x, ...p } : x)));
@@ -91,8 +92,11 @@ export function UploadZone({ registrationId, disabled }: { registrationId: strin
         )}
       </div>
       {items.length > 0 && (
+        <UploadSummary items={items} open={showList || items.some((x) => x.state === "error")} onToggle={() => setShowList((v) => !v)} onClear={() => { setItems((xs) => xs.filter((x) => x.state !== "done")); setShowList(false); }} />
+      )}
+      {items.length > 0 && (showList || items.some((x) => x.state === "error")) && (
         <ul className="upload-list" aria-live="polite">
-          {items.map((it) => (
+          {[...items].sort((a, b) => Number(b.state === "error") - Number(a.state === "error")).map((it) => (
             <li key={it.key} data-state={it.state}>
               <span className="upload-name">{it.file.name}</span>
               <span className="meta num">{fmtBytes(it.file.size)}</span>
@@ -119,6 +123,25 @@ export function UploadZone({ registrationId, disabled }: { registrationId: strin
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** One line for the whole batch, so twenty files do not push the page down. */
+function UploadSummary({ items, open, onToggle, onClear }: { items: Item[]; open: boolean; onToggle: () => void; onClear: () => void }) {
+  const done = items.filter((x) => x.state === "done").length;
+  const failed = items.filter((x) => x.state === "error").length;
+  const active = items.length - done - failed;
+  const sent = items.filter((x) => x.state === "done" || x.state === "error").length + items.filter((x) => x.state === "sending").reduce((a, x) => a + x.progress, 0);
+  return (
+    <div className="upload-summary" aria-live="polite">
+      <span className="upload-bar upload-total" aria-hidden="true"><span style={{ transform: `scaleX(${items.length ? sent / items.length : 0})` }} /></span>
+      <span>
+        {active > 0 ? `Enviando ${done + failed + 1} de ${items.length}` : `${done} ${done === 1 ? "arquivo enviado" : "arquivos enviados"}, em análise`}
+        {failed > 0 && <span className="danger-text">{` · ${failed} com erro`}</span>}
+      </span>
+      <button className="link-btn meta" onClick={onToggle} disabled={failed > 0}>{open ? "Ocultar a lista" : "Ver a lista"}</button>
+      {active === 0 && done > 0 && <button className="link-btn meta" onClick={onClear}>Limpar</button>}
     </div>
   );
 }

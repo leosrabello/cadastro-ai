@@ -22,6 +22,7 @@ export function RegistrationDetail() {
   const [deciding, setDeciding] = useState<Decision["action"] | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [showTrail, setShowTrail] = useState(false);
 
   const q = useQuery({
     queryKey: ["registration", id],
@@ -112,26 +113,7 @@ export function RegistrationDetail() {
               <span className="meta">{plural(r.documents.length, "arquivo", "arquivos")}</span>
             </div>
             {perm.operate && <UploadZone registrationId={r.id} disabled={closed} />}
-            {r.documents.length > 0 && (
-              <table className="table docs-table">
-                <thead>
-                  <tr><th>Documento</th><th>Validade</th><th>Análise</th><th>Recebido</th></tr>
-                </thead>
-                <tbody>
-                  {r.documents.map((d) => (
-                    <tr key={d.id} className="clickable" onClick={() => nav(`/documentos/${d.id}`)}>
-                      <td>
-                        <a className="strong" href={`#/documentos/${d.id}`} onClick={(e) => e.stopPropagation()}>{docName(d)}</a>
-                        <div className="meta">{d.original_filename}{d.issuer ? ` · ${d.issuer}` : ""}</div>
-                      </td>
-                      <td>{d.validity ? <Mark tone={VALIDITY[d.validity.state].tone}>{VALIDITY[d.validity.state].label}</Mark> : <span className="muted">—</span>}</td>
-                      <td><DocState d={d} /></td>
-                      <td className="meta num">{fmtDate(d.received_at)}<div>{d.source === "shared_folder" ? "Pasta monitorada" : "Envio manual"}</div></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            {r.documents.length > 0 && <DocGroups docs={r.documents} isCompany={meta?.profiles[r.kind]?.tax_id_kind === "cnpj"} docName={docName} onOpen={(id) => nav(`/documentos/${id}`)} />}
           </section>
 
           <section aria-labelledby="findings-h">
@@ -144,13 +126,7 @@ export function RegistrationDetail() {
                 {r.documents.length === 0 ? "Os pontos aparecem quando os documentos forem analisados." : "Nada em aberto. Confira a ficha ao lado antes de decidir."}
               </p>
             ) : (
-              <div className="stack enter">
-                {findings.open.map((f, i) => (
-                  <div key={f.id} style={{ ["--i" as string]: Math.min(i, 8) }}>
-                    <FindingCard f={f} closed={closed} />
-                  </div>
-                ))}
-              </div>
+              <FindingGroups open={findings.open} closed={closed} />
             )}
             {findings.closed.length > 0 && (
               <div style={{ marginTop: 14 }}>
@@ -168,7 +144,7 @@ export function RegistrationDetail() {
               {perm.audit && <Link className="meta" to={`/historico?cadastro=${r.id}`}>Ver no histórico completo</Link>}
             </div>
             <ol className="trail">
-              {r.history.slice(0, 40).map((e) => (
+              {r.history.slice(0, showTrail ? 40 : 8).map((e) => (
                 <li key={e.id}>
                   <span className="meta num">{fmtDateTime(e.at)}</span>
                   <span>
@@ -181,11 +157,126 @@ export function RegistrationDetail() {
                 </li>
               ))}
             </ol>
+            {r.history.length > 8 && (
+              <button className="link-btn meta" style={{ marginTop: 8 }} onClick={() => setShowTrail((v) => !v)}>
+                {showTrail ? "Mostrar só os últimos" : `Ver todos (${Math.min(r.history.length, 40)})`}
+              </button>
+            )}
           </section>
         </div>
       </div>
       {linking && <LinkDialog r={r} onClose={() => setLinking(false)} />}
       {deciding && <DecisionDialog r={r} action={deciding} onClose={() => setDeciding(null)} />}
+    </div>
+  );
+}
+
+const FINDING_BANDS: { key: string; label: string; severities: Finding["severity"][]; startOpen: boolean }[] = [
+  { key: "alta", label: "Críticos e altos", severities: ["critical", "high"], startOpen: true },
+  { key: "media", label: "Médios", severities: ["medium"], startOpen: false },
+  { key: "baixa", label: "Baixos", severities: ["low"], startOpen: false },
+  { key: "info", label: "Informativos", severities: ["info"], startOpen: false },
+];
+
+/** Open points folded by severity: the serious ones stay open, the rest is one line each until asked for. */
+function FindingGroups({ open, closed }: { open: Finding[]; closed: boolean }) {
+  const bands = FINDING_BANDS.map((b) => ({ ...b, items: open.filter((f) => b.severities.includes(f.severity)) })).filter((b) => b.items.length);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(bands.map((b, i) => [b.key, b.startOpen || (i === 0 && b.items.length <= 6)])));
+  return (
+    <div className="doc-groups">
+      {bands.map((b) => {
+        const fromAi = b.items.filter((f) => f.source === "ai").length;
+        return (
+          <section key={b.key} className="doc-group" data-open={!!expanded[b.key]}>
+            <button className="doc-group-head" aria-expanded={!!expanded[b.key]} onClick={() => setExpanded((o) => ({ ...o, [b.key]: !o[b.key] }))}>
+              <span className="doc-group-chevron" aria-hidden="true" />
+              <Mark tone={SEVERITY_TONE[b.severities[0]]}><span className="strong">{b.label}</span></Mark>
+              <span className="meta num">{plural(b.items.length, "ponto", "pontos")}</span>
+              <span className="doc-group-state">
+                {fromAi > 0 && <span className="meta">{fromAi} da análise por IA</span>}
+              </span>
+            </button>
+            {expanded[b.key] && (
+              <div className="stack doc-group-body">
+                {b.items.map((f) => <FindingCard key={f.id} f={f} closed={closed} />)}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+const SEVERITY_TONE: Record<Finding["severity"], string> = { critical: "danger", high: "danger", medium: "warn", low: "muted", info: "hollow" };
+
+// what a document is about, to fold a long list into a few sections
+const DOC_GROUPS: { key: string; label: string; personLabel?: string; types: string[] }[] = [
+  { key: "empresa", label: "Empresa", types: ["cartao_cnpj", "contrato_social", "certidao_simplificada", "estatuto_social", "ata_eleicao"] },
+  { key: "financeiro", label: "Financeiro", types: ["balanco_dre", "balancete", "faturamento", "endividamento", "curva_abc"] },
+  { key: "pessoas", label: "Sócios e pessoas", personLabel: "Documentos pessoais", types: ["rg", "cin", "cnh", "comprovante_endereco", "irpf", "certidao_casamento"] },
+  { key: "visita", label: "Visita comercial", types: ["relatorio_visita"] },
+];
+
+function needsAttention(d: DocumentBrief) {
+  const v = d.validity?.state;
+  return d.status !== "processed" || !d.doc_type || v === "expired" || v === "too_old" || v === "invalid" || v === "contradictory";
+}
+
+function DocGroups({ docs, isCompany, docName, onOpen }: { docs: DocumentBrief[]; isCompany: boolean; docName: (d: DocumentBrief) => string; onOpen: (id: string) => void }) {
+  const groups = DOC_GROUPS.map((g) => ({ ...g, label: !isCompany && g.personLabel ? g.personLabel : g.label, docs: docs.filter((d) => d.doc_type && g.types.includes(d.doc_type)) }));
+  const known = new Set(DOC_GROUPS.flatMap((g) => g.types));
+  groups.push({ key: "outros", label: "Tipo não identificado", types: [], docs: docs.filter((d) => !d.doc_type || !known.has(d.doc_type)) });
+  // a section starts open only when something in it needs a look
+  const [open, setOpen] = useState<Record<string, boolean>>(() => Object.fromEntries(groups.map((g) => [g.key, g.docs.some(needsAttention)])));
+  const allOpen = groups.filter((g) => g.docs.length).every((g) => open[g.key]);
+  return (
+    <div className="doc-groups">
+      <div className="doc-groups-tools">
+        <button className="link-btn meta" onClick={() => setOpen(Object.fromEntries(groups.map((g) => [g.key, !allOpen])))}>{allOpen ? "Recolher todos" : "Abrir todos"}</button>
+      </div>
+      {groups.filter((g) => g.docs.length).map((g) => {
+        const attention = g.docs.filter(needsAttention);
+        const running = g.docs.filter((d) => d.status === "queued" || d.status === "processing").length;
+        const expired = g.docs.filter((d) => d.validity && ["expired", "too_old", "invalid", "contradictory"].includes(d.validity.state)).length;
+        const sorted = [...g.docs].sort((a, b) => docName(a).localeCompare(docName(b), "pt-BR") || a.original_filename.localeCompare(b.original_filename, "pt-BR"));
+        return (
+          <section key={g.key} className="doc-group" data-open={!!open[g.key]}>
+            <button className="doc-group-head" aria-expanded={!!open[g.key]} onClick={() => setOpen((o) => ({ ...o, [g.key]: !o[g.key] }))}>
+              <span className="doc-group-chevron" aria-hidden="true" />
+              <span className="strong">{g.label}</span>
+              <span className="meta num">{plural(g.docs.length, "arquivo", "arquivos")}</span>
+              <span className="doc-group-state">
+                {running > 0 && <Mark tone="muted">{running} em análise</Mark>}
+                {expired > 0 && <Mark tone="danger">{expired} fora da validade</Mark>}
+                {attention.length === 0 && <Mark tone="accent">Em ordem</Mark>}
+                {attention.length - running - expired > 0 && <Mark tone="warn">{attention.length - running - expired} a conferir</Mark>}
+              </span>
+            </button>
+            {open[g.key] && (
+              <table className="table docs-table">
+                <thead>
+                  <tr><th>Documento</th><th>Validade</th><th>Análise</th><th>Recebido</th></tr>
+                </thead>
+                <tbody>
+                  {sorted.map((d) => (
+                    <tr key={d.id} className="clickable" onClick={() => onOpen(d.id)}>
+                      <td>
+                        <a className="strong" href={`#/documentos/${d.id}`} onClick={(e) => e.stopPropagation()}>{docName(d)}</a>
+                        <div className="meta">{d.original_filename}{d.issuer ? ` · ${d.issuer}` : ""}</div>
+                      </td>
+                      <td>{d.validity ? <Mark tone={VALIDITY[d.validity.state].tone}>{VALIDITY[d.validity.state].label}</Mark> : <span className="muted">—</span>}</td>
+                      <td><DocState d={d} /></td>
+                      <td className="meta num">{fmtDate(d.received_at)}<div>{d.source === "shared_folder" ? "Pasta monitorada" : "Envio manual"}</div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
