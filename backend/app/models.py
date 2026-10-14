@@ -1,9 +1,10 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -57,6 +58,15 @@ class RegStatus:
     CLOSED = (REJECTED,)
 
 
+class Modality:
+    """Business line a registration or portfolio client belongs to."""
+
+    NORMAL = "normal"
+    ONE7 = "one7"
+    ALL = (NORMAL, ONE7)
+    LABELS = {NORMAL: "Normal", ONE7: "One7"}
+
+
 class DocStatus:
     QUEUED = "queued"
     PROCESSING = "processing"
@@ -106,6 +116,8 @@ class Registration(Base):
     id: Mapped[uuid.UUID] = uuid_pk()
     code: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     kind: Mapped[str] = mapped_column(String(32))  # requirement profile key, e.g. "PF", "PJ"
+    modality: Mapped[str] = mapped_column(String(16), default=Modality.NORMAL, server_default=Modality.NORMAL, index=True)
+    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("portfolio_clients.id"), index=True)
     subject_name: Mapped[str] = mapped_column(String(300))
     tax_id: Mapped[str | None] = mapped_column(String(32), index=True)  # digits only
     reference_fields: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -127,6 +139,111 @@ class Registration(Base):
     documents: Mapped[list["Document"]] = relationship(back_populates="registration", foreign_keys="Document.registration_id")
     created_by: Mapped[User | None] = relationship(foreign_keys=[created_by_id])
     decided_by: Mapped[User | None] = relationship(foreign_keys=[decided_by_id])
+    client: Mapped["PortfolioClient | None"] = relationship(foreign_keys=[client_id])
+
+
+class Commercial(Base):
+    """Sales person (comercial) responsible for portfolio clients."""
+
+    __tablename__ = "commercials"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    name: Mapped[str] = mapped_column(String(120))
+    name_key: Mapped[str] = mapped_column(String(120), unique=True)  # accent- and case-insensitive identity
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class PortfolioClient(Base):
+    """A client folder followed through the credit pipeline (pasta nova, comitê, assinatura, apto a operar).
+
+    Imported from the team's previous dashboard (external_id keeps reimports idempotent) or created here.
+    Dates are business dates without time; status_history carries the timestamps of each status change."""
+
+    __tablename__ = "portfolio_clients"
+    __table_args__ = (
+        UniqueConstraint("external_id"),
+        Index("ix_portfolio_clients_modality_status", "modality", "status"),
+    )
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    external_id: Mapped[str | None] = mapped_column(String(64))
+    modality: Mapped[str] = mapped_column(String(16), index=True)
+    name: Mapped[str] = mapped_column(String(300))
+    name_key: Mapped[str] = mapped_column(String(300), index=True)
+    commercial_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("commercials.id"), index=True)
+    status: Mapped[str] = mapped_column(String(64))
+    entry_date: Mapped[date | None] = mapped_column(Date)
+    pre_committee_date: Mapped[date | None] = mapped_column(Date)
+    committee_date: Mapped[date | None] = mapped_column(Date)
+    contract_issued_date: Mapped[date | None] = mapped_column(Date)
+    signature_completed_date: Mapped[date | None] = mapped_column(Date)
+    notes: Mapped[str] = mapped_column(Text, default="")
+    risk_exit: Mapped[bool] = mapped_column(Boolean, default=False)  # saída de risco
+    limit_expired: Mapped[bool] = mapped_column(Boolean, default=False)  # limite vencido
+    milestones: Mapped[dict] = mapped_column(JSONB, default=dict)
+    extra: Mapped[dict] = mapped_column(JSONB, default=dict)  # modality-specific fields (One7: tipo de análise, resultado do comitê...)
+    followups: Mapped[list] = mapped_column(JSONB, default=list)  # cobranças: [{date, note, kind}]
+    status_history: Mapped[list] = mapped_column(JSONB, default=list)  # [{status, at}]
+    legacy_history: Mapped[list] = mapped_column(JSONB, default=list)  # log carried over from the previous dashboard
+    source: Mapped[str] = mapped_column(String(16), default="manual")  # manual | import
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    commercial: Mapped[Commercial | None] = relationship()
+
+
+class SignatureTracking(Base):
+    """One company's contracts awaiting signature on the signing portal (SEC and FIDC)."""
+
+    __tablename__ = "signature_trackings"
+    __table_args__ = (UniqueConstraint("external_id"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    external_id: Mapped[str | None] = mapped_column(String(64))
+    client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("portfolio_clients.id"), index=True)
+    modality: Mapped[str] = mapped_column(String(16), default=Modality.NORMAL, index=True)
+    company_name: Mapped[str] = mapped_column(String(300))
+    commercial_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("commercials.id"))
+    followups: Mapped[list] = mapped_column(JSONB, default=list)
+    auto_created: Mapped[bool] = mapped_column(Boolean, default=False)  # opened when the client reached aguardando assinatura
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    imported_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    client: Mapped[PortfolioClient | None] = relationship()
+    commercial: Mapped[Commercial | None] = relationship()
+    contracts: Mapped[list["SignatureContract"]] = relationship(back_populates="tracking", cascade="all, delete-orphan", order_by="SignatureContract.kind.desc()")
+
+
+class SignatureContract(Base):
+    __tablename__ = "signature_contracts"
+    __table_args__ = (UniqueConstraint("tracking_id", "kind"),)
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    tracking_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("signature_trackings.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(8))  # SEC | FIDC
+    process_number: Mapped[str] = mapped_column(String(80), default="")
+    created_date: Mapped[date | None] = mapped_column(Date)
+    issued_date: Mapped[date | None] = mapped_column(Date)  # sent for signature on the portal
+    signed_date: Mapped[date | None] = mapped_column(Date)  # every party signed
+
+    tracking: Mapped[SignatureTracking] = relationship(back_populates="contracts")
+
+
+class DataImport(Base):
+    __tablename__ = "data_imports"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    filename: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    imported_by_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"))
+    imported_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+    imported_by: Mapped[User | None] = relationship()
 
 
 class Document(Base):
@@ -328,7 +445,9 @@ class Counter(Base):
 __all__ = [
     "AppSetting",
     "AuditEvent",
+    "Commercial",
     "Counter",
+    "DataImport",
     "Decision",
     "DocStatus",
     "Document",
@@ -336,10 +455,14 @@ __all__ = [
     "Finding",
     "FindingStatus",
     "IngestRecord",
+    "Modality",
+    "PortfolioClient",
     "ProcessingJob",
     "RegStatus",
     "Registration",
     "Role",
+    "SignatureContract",
+    "SignatureTracking",
     "User",
     "UserSession",
     "WatcherStatus",

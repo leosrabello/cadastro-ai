@@ -106,3 +106,17 @@ Requested: a landing page with a way in, a centred sign-in with a real logo, the
 - **Look-and-fix rounds:** repeated AI observations grouped and ranked after rule findings; CSS reset
   specificity fixed (lost margins); figures in two decimal-aligned columns; document thumbnails
   cropped to their printed headers; captions widened. Lint 0 FAIL.
+
+## Carteira, Assinaturas, Relatórios (fourth pass)
+
+- **No new draw.** The request was to stay consistent with the current interface, so the dealt
+  direction, palette, type, tile and table shapes were reused.
+- **Modality switch.** The existing switch, with both sides labeled. Both modalities are valid
+  choices, so the track never reads as "off": the knob stays lit on either side.
+- **Figures.** Filled tiles, as on the Painel; the lead tile is in the accent.
+- **Report image.** The portfolio report is a second sheet in "The printed annual" (masthead
+  band, ledger aligned on the decimal, chart in an accent field beside a reading column, banded
+  rows, ink close). It uses the dataviz palette already validated for the analysis report
+  (#6a9a1c, #2f78b0, plus the neutral #5c5c5c for denied).
+- **Gate:** lint 0 FAIL. Fixed on screenshots: wrapped day values, truncated selects, a figure
+  size jump between "35,5 dias" and "4,8 dias", and "1 dias".

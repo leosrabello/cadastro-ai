@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { ModalityTag } from "../components/ModalitySwitch";
 import { api } from "../api/client";
 import type { Page, PriorityReason, RegistrationRow } from "../api/types";
 import { Empty, ErrorBox, LoadingRows, Pager, StatusMark } from "../components/ui";
@@ -19,10 +20,16 @@ export function Queue() {
   const nav = useNavigate();
   const [params, setParams] = useSearchParams();
   const scope = params.get("escopo") ?? "all";
+  const modality = params.get("modalidade") ?? "";
   const page = Number(params.get("pagina") ?? 1);
+  const set = (changes: Record<string, string | null>) => {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(changes)) v ? next.set(k, v) : next.delete(k);
+    setParams(next);
+  };
   const q = useQuery({
-    queryKey: ["queue", scope, page],
-    queryFn: () => api<QueuePage>(`/api/queue?scope=${scope}&page=${page}&page_size=50`),
+    queryKey: ["queue", scope, modality, page],
+    queryFn: () => api<QueuePage>(`/api/queue?scope=${scope}&page=${page}&page_size=50${modality ? `&modality=${modality}` : ""}`),
     placeholderData: keepPreviousData,
     refetchInterval: 15_000,
   });
@@ -35,12 +42,19 @@ export function Queue() {
           <p className="muted">Ordenada por pontos de prioridade. Cada ponto vem de uma regra que você pode conferir ao lado.</p>
         </div>
       </div>
-      <div className="segmented" role="group" aria-label="Recorte da fila" style={{ marginBottom: 20 }}>
-        {SCOPES.map((s) => (
-          <button key={s.key} aria-pressed={scope === s.key} onClick={() => setParams(s.key === "all" ? {} : { escopo: s.key })}>
-            {s.label}
-          </button>
-        ))}
+      <div className="row" style={{ marginBottom: 20, flexWrap: "wrap" }}>
+        <div className="segmented" role="group" aria-label="Recorte da fila">
+          {SCOPES.map((s) => (
+            <button key={s.key} aria-pressed={scope === s.key} onClick={() => set({ escopo: s.key === "all" ? null : s.key, pagina: null })}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <select className="select" style={{ width: 190 }} value={modality} onChange={(e) => set({ modalidade: e.target.value || null, pagina: null })} aria-label="Modalidade">
+          <option value="">Normal e One7</option>
+          <option value="normal">Só Normal</option>
+          <option value="one7">Só One7</option>
+        </select>
       </div>
       <div className="queue-layout">
         <div>
@@ -59,7 +73,7 @@ export function Queue() {
                       <span className="queue-score num">{r.priority_score}</span>
                       <span className="queue-who">
                         <span className="strong">{r.subject_name}</span>
-                        <span className="meta num">{r.code} · {fmtTaxId(r.tax_id)} · criado {relative(r.created_at)}</span>
+                        <span className="meta num"><ModalityTag modality={r.modality} /> {r.code} · {fmtTaxId(r.tax_id)} · criado {relative(r.created_at)}</span>
                       </span>
                       <span className="queue-status"><StatusMark status={r.status} /></span>
                       <Reasons reasons={r.priority_reasons} />
@@ -67,7 +81,7 @@ export function Queue() {
                   </li>
                 ))}
               </ol>
-              <Pager page={page} pageSize={50} total={q.data.total} onPage={(p) => setParams({ ...(scope !== "all" ? { escopo: scope } : {}), pagina: String(p) })} />
+              <Pager page={page} pageSize={50} total={q.data.total} onPage={(p) => set({ pagina: String(p) })} />
             </>
           )}
         </div>

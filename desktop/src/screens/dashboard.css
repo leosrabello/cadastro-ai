@@ -32,3 +32,32 @@
 .done-list a { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; padding: 10px 2px; text-decoration: none; align-items: center; }
 .done-list a:hover span:first-child { text-decoration: underline; }
 .system-line { margin-top: 48px; max-width: 110ch; }
+
+/* the portfolio of the chosen modality: a strip of figures, then status bars and commercials */
+.carteira { margin-top: 56px; }
+.facts-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.fact { display: grid; align-content: start; gap: 2px; padding: 18px 20px; min-height: 124px; background: var(--surface); border-radius: var(--radius); text-decoration: none; color: var(--ink); transition: background-color 140ms var(--ease); }
+a.fact:hover { background: var(--surface-2); }
+.fact-value { font-size: var(--step-title); font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; margin-bottom: 10px; overflow-wrap: anywhere; }
+.fact-value[data-long="true"] { font-size: var(--step-lead); }
+.fact-value[data-tone="warn"] { color: var(--warn); }
+.fact-value[data-tone="danger"] { color: var(--danger); }
+.fact-label { font-weight: 600; }
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.bars li { display: grid; grid-template-columns: minmax(120px, 200px) 1fr 40px; gap: 12px; align-items: center; }
+.bar-label { font-size: var(--step-meta); color: var(--muted); }
+.bar-track { height: 10px; background: var(--surface); border-radius: 2px; overflow: hidden; }
+.bar-fill { display: block; height: 100%; background: var(--ink); border-radius: 2px; transition: width 260ms var(--ease); }
+.bar-fill[data-outcome="approved"] { background: var(--accent); }
+.bar-fill[data-outcome="denied"] { background: var(--danger); }
+.bars .num { text-align: right; }
+.table.compact td, .table.compact th { padding: 8px 10px; }
+.table .num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1100px) {
+  .facts-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 1000px) {
+  .board { grid-template-columns: repeat(2, 1fr); }
+  .dash-cols { grid-template-columns: 1fr; gap: 32px; }
+}

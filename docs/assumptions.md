@@ -40,3 +40,16 @@ Source: "Checklist de Documentos - FinTrust 2026 (v2.1)". Applied as the standar
 | Per partner | Items "dos sócios" show how many were received; the number of partners is not enforced automatically. |
 | Spouse documents | Optional ("se aplicável"); the system cannot tell a spouse's ID from a partner's. |
 | Bank details, financial contact | Information filled on the registration, not documents. |
+
+## Carteira and modalities (2026-10-14)
+
+| Topic | Assumption |
+| --- | --- |
+| Registrations created before One7 existed here | Normal (migration default); changeable per registration |
+| One7 outcome | Apto a Operar, or the ONE7 committee result aprovado / negado. *Cedente Bloqueado* is not treated as a denial |
+| Custom statuses of the old dashboard (Aprovado na Libra, Stand By, Reanálise aprovada, Reanálise Negada) | In progress for the indicators, as in the old dashboard; an administrator can mark one as approved or denied in the `client_statuses` setting |
+| Commercial names | Kept as typed: "Breno/Leonardo", "Vittra" and "Vitra Connect" stay separate commercials until someone renames them |
+| Same-name folders in the file (PIERINO GOTTI twice) | Both kept; flagged in the preview |
+| Missing entry date | Imported as incomplete, excluded from time averages |
+| Signing time | From the contracts in Assinaturas (SEC and FIDC); the client's own dates only when it has no contracts there |
+| SLA for "atrasado" | 7 days in the same status, as in the old dashboard; setting `portfolio.sla_days` |

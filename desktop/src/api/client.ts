@@ -104,6 +104,22 @@ export async function api<T>(path: string, init: RequestInit & { json?: unknown 
   return res.json() as Promise<T>;
 }
 
+/** POST of a multipart form (a file and its fields), with the same session and error handling as api(). */
+export async function apiForm<T>(path: string, form: FormData): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(serverUrl() + path, { method: "POST", body: form, headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  } catch {
+    throw new ApiError(0, "network", "Não foi possível falar com o servidor. Verifique a rede ou o endereço do servidor.");
+  }
+  if (res.status === 401 && token) {
+    setToken(null);
+    onUnauthorized?.();
+  }
+  if (!res.ok) throw await toError(res);
+  return res.json() as Promise<T>;
+}
+
 export async function apiBlob(path: string): Promise<Blob> {
   const res = await fetch(serverUrl() + path, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
   if (!res.ok) throw await toError(res);

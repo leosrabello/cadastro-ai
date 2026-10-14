@@ -11,3 +11,4 @@ desktop/src-tauri/gen/
 samples/generated/
 eval-report/
 .DS_Store
+backups/

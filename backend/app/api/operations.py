@@ -20,6 +20,7 @@ from app.models import (
     Finding,
     FindingStatus,
     IngestRecord,
+    Modality,
     ProcessingJob,
     RegStatus,
     Registration,
@@ -39,12 +40,15 @@ QUEUE_STATUSES = (RegStatus.AWAITING_REVIEW, RegStatus.PROCESSING_FAILED)
 @router.get("/queue")
 def review_queue(
     scope: Literal["all", "escalated", "ready", "failed"] = "all",
+    modality: Literal["normal", "one7"] | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
     p: Principal = Depends(ANY_ROLE),
     db: Session = Depends(get_db),
 ):
     stmt = select(Registration).where(Registration.status.in_(QUEUE_STATUSES))
+    if modality:
+        stmt = stmt.where(Registration.modality == modality)
     if scope == "ready":
         stmt = stmt.where(Registration.ready_for_decision.is_(True))
     elif scope == "failed":
@@ -66,37 +70,50 @@ def review_queue(
 
 
 @router.get("/dashboard")
-def dashboard(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
+def dashboard(modality: Literal["normal", "one7"] | None = None, p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
+    """Work counts. With a modality, every registration count is that modality's; documents in the inbox
+    have no registration yet, so that one count is always for both modalities."""
+    in_mod = (Registration.modality == modality,) if modality else ()
+
+    def of_mod(registration_col):
+        return (registration_col.in_(select(Registration.id).where(*in_mod)),) if modality else ()
+
     def count_regs(*conds):
-        return db.execute(select(func.count(Registration.id)).where(*conds)).scalar_one()
+        return db.execute(select(func.count(Registration.id)).where(*conds, *in_mod)).scalar_one()
 
     now = utcnow()
     week = now - timedelta(days=7)
     start_today = datetime.combine(date.today(), time.min, tzinfo=timezone.utc)
-    docs_in_flight = db.execute(select(func.count(Document.id)).where(Document.status.in_((DocStatus.QUEUED, DocStatus.PROCESSING)))).scalar_one()
-    docs_failed = db.execute(select(func.count(Document.id)).where(Document.status == DocStatus.FAILED)).scalar_one()
+    doc_mod = of_mod(Document.registration_id)
+    docs_in_flight = db.execute(select(func.count(Document.id)).where(Document.status.in_((DocStatus.QUEUED, DocStatus.PROCESSING)), *doc_mod)).scalar_one()
+    docs_failed = db.execute(select(func.count(Document.id)).where(Document.status == DocStatus.FAILED, *doc_mod)).scalar_one()
     inbox = db.execute(select(func.count(Document.id)).where(Document.registration_id.is_(None), Document.status != DocStatus.PURGED)).scalar_one()
     escalated = db.execute(
-        select(func.count(func.distinct(Finding.registration_id))).where(Finding.status == FindingStatus.ESCALATED)
+        select(func.count(func.distinct(Finding.registration_id))).where(
+            Finding.status == FindingStatus.ESCALATED, *of_mod(Finding.registration_id))
     ).scalar_one()
     missing_docs = db.execute(
         select(func.count(Registration.id)).where(
+            *in_mod,
             Registration.status.notin_(RegStatus.FINAL),
             text("EXISTS (SELECT 1 FROM jsonb_array_elements(registrations.checklist->'documents') i WHERE i->>'state' IN ('missing','unclassified') AND COALESCE((i->>'blocking')::boolean, true))"),
         )
     ).scalar_one()
     recent = db.execute(
-        select(Registration).where(Registration.status.in_(RegStatus.FINAL), Registration.decided_at >= week).order_by(Registration.decided_at.desc()).limit(8)
+        select(Registration).where(Registration.status.in_(RegStatus.FINAL), Registration.decided_at >= week, *in_mod).order_by(Registration.decided_at.desc()).limit(8)
     ).scalars().all()
     top = db.execute(
-        select(Registration).where(Registration.status.in_(QUEUE_STATUSES)).order_by(Registration.priority_score.desc(), Registration.created_at).limit(6)
+        select(Registration).where(Registration.status.in_(QUEUE_STATUSES), *in_mod).order_by(Registration.priority_score.desc(), Registration.created_at).limit(6)
     ).scalars().all()
     jobs_24h = db.execute(select(ProcessingJob.duration_ms).where(ProcessingJob.finished_at >= now - timedelta(hours=24), ProcessingJob.status == "done")).scalars().all()
     watcher = db.get(WatcherStatus, 1)
-    decided_today = db.execute(select(func.count(Decision.id)).where(Decision.decided_at >= start_today, Decision.action.in_(("approve", "reject", "request_documents")))).scalar_one()
+    decided_today = db.execute(select(func.count(Decision.id)).where(
+        Decision.decided_at >= start_today, Decision.action.in_(("approve", "reject", "request_documents")),
+        *of_mod(Decision.registration_id))).scalar_one()
     processing_cfg = get_setting(db, "processing")
     s = get_settings()
     return {
+        "modality": modality,
         "counts": {
             "awaiting_processing": count_regs(Registration.status.in_((RegStatus.AWAITING_PROCESSING, RegStatus.PROCESSING))),
             "documents_in_flight": docs_in_flight,
@@ -225,6 +242,7 @@ def meta(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
         "user": {"id": str(p.user.id), "name": p.user.name, "email": p.user.email, "role": role},
         "document_types": {k: {"label": v.get("label", k), "fields": v.get("fields", [])} for k, v in doc_types.items()},
         "profiles": {k: {"label": v.get("label", k), "tax_id_kind": v.get("tax_id_kind", "cpf")} for k, v in profiles.items()},
+        "modalities": {k: v for k, v in Modality.LABELS.items()},
         "field_labels": FIELD_LABELS,
         "statuses": list(RegStatus.ALL),
         "roles": list(Role.ALL),

@@ -87,6 +87,11 @@ produced become `superseded`, never deleted.
 | `app_settings` | Versioned operational configuration |
 | `audit_events` | Append-only, hash-chained; UPDATE/DELETE/TRUNCATE blocked by trigger |
 
+Migration `0002_modality_and_portfolio.py` adds `registrations.modality` (normal | one7, existing
+rows default to normal) and `registrations.client_id`, and the portfolio tables: `commercials`,
+`portfolio_clients`, `signature_trackings`, `signature_contracts`, `data_imports`. See
+[portfolio.md](portfolio.md).
+
 ## Statuses
 
 Registration: `awaiting_processing` (no documents yet) → `processing` → `awaiting_review` →

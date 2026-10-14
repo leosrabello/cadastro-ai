@@ -281,6 +281,34 @@ APPROVAL = {
     "allow_approve_with_open_findings": False,
 }
 
+# Pipeline statuses of portfolio clients, per modality, as the team used them in the previous dashboard.
+# outcome: "approved" or "denied" closes the folder for the indicators (Apto a Operar / Negada);
+# opens_signature: reaching it opens the contracts in Assinaturas.
+CLIENT_STATUSES = {
+    "normal": [
+        {"key": "pasta_nova", "label": "Pasta Nova"},
+        {"key": "aguardando_conferencia", "label": "Aguardando Conferência"},
+        {"key": "aguardando_pre_comite", "label": "Aguardando Pré-Comitê"},
+        {"key": "aguardando_comite", "label": "Aguardando Comitê"},
+        {"key": "aguardando_documentacao", "label": "Aguardando Documentação"},
+        {"key": "aguardando_assinatura", "label": "Aguardando Assinatura", "opens_signature": True},
+        {"key": "apto_operar", "label": "Apto a Operar", "outcome": "approved"},
+        {"key": "reanalise", "label": "Reanálise"},
+        {"key": "negada", "label": "Negada", "outcome": "denied"},
+    ],
+    "one7": [
+        {"key": "ag_documentos", "label": "Ag. Documentos"},
+        {"key": "solicitar_docs", "label": "Solicitar Docs"},
+        {"key": "cedente_bloqueado", "label": "Cedente Bloqueado"},
+        {"key": "ag_comite", "label": "Ag. Comitê"},
+        {"key": "apto_operar", "label": "Apto a Operar", "outcome": "approved"},
+    ],
+}
+
+PORTFOLIO = {
+    "sla_days": 7,  # days in the same status after which a folder counts as atrasada
+}
+
 DEFAULTS: dict[str, object] = {
     "document_types": DOCUMENT_TYPES,
     "requirement_profiles": REQUIREMENT_PROFILES,
@@ -291,4 +319,6 @@ DEFAULTS: dict[str, object] = {
     "retention": RETENTION,
     "integrations": INTEGRATIONS,
     "approval": APPROVAL,
+    "client_statuses": CLIENT_STATUSES,
+    "portfolio": PORTFOLIO,
 }

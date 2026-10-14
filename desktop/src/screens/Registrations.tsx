@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { Page, RegistrationRow } from "../api/types";
 import { useAuth } from "../auth";
+import { ModalityTag } from "../components/ModalitySwitch";
 import { Empty, ErrorBox, LoadingRows, Pager, StatusMark } from "../components/ui";
 import { fmtTaxId, relative } from "../lib/format";
 
@@ -23,6 +24,7 @@ export function Registrations() {
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
   const kind = params.get("tipo") ?? "";
+  const modality = params.get("modalidade") ?? "";
   const sort = (params.get("ordem") as Sort) ?? "priority";
   const direction = params.get("dir") ?? (sort === "name" || sort === "code" ? "asc" : "desc");
   const page = Number(params.get("pagina") ?? 1);
@@ -44,6 +46,7 @@ export function Registrations() {
   if (params.get("q")) query.set("q", params.get("q")!);
   if (status) query.set("status", status);
   if (kind) query.set("kind", kind);
+  if (modality) query.set("modality", modality);
   const q = useQuery({
     queryKey: ["registrations", query.toString()],
     queryFn: () => api<Page<RegistrationRow>>(`/api/registrations?${query}`),
@@ -72,6 +75,11 @@ export function Registrations() {
               </button>
             ))}
           </div>
+          <select className="select" style={{ width: 170 }} value={modality} onChange={(e) => update({ modalidade: e.target.value || null, pagina: null })} aria-label="Modalidade">
+            <option value="">Normal e One7</option>
+            <option value="normal">Só Normal</option>
+            <option value="one7">Só One7</option>
+          </select>
           <select className="select" style={{ width: 170 }} value={kind} onChange={(e) => update({ tipo: e.target.value || null, pagina: null })} aria-label="Tipo de cadastro">
             <option value="">Pessoa física e jurídica</option>
             {Object.entries(meta?.profiles ?? {}).map(([k, p]) => (
@@ -87,8 +95,8 @@ export function Registrations() {
       ) : !q.data ? (
         <LoadingRows />
       ) : q.data.items.length === 0 ? (
-        <Empty title={params.get("q") || status ? "Nenhum cadastro com esses filtros" : "Ainda não há cadastros"}>
-          {params.get("q") || status ? "Limpe a busca ou escolha outra situação." : "Crie o primeiro em Novo cadastro, ou deixe arquivos na pasta monitorada."}
+        <Empty title={params.get("q") || status || modality || kind ? "Nenhum cadastro com esses filtros" : "Ainda não há cadastros"}>
+          {params.get("q") || status || modality || kind ? "Limpe a busca ou escolha outra situação ou modalidade." : "Crie o primeiro em Novo cadastro, ou deixe arquivos na pasta monitorada."}
         </Empty>
       ) : (
         <>
@@ -111,7 +119,7 @@ export function Registrations() {
                   </td>
                   <td>
                     <div className="strong">{r.subject_name}</div>
-                    <div className="meta num">{meta?.profiles[r.kind]?.label ?? r.kind} · {fmtTaxId(r.tax_id)}</div>
+                    <div className="meta num"><ModalityTag modality={r.modality} /> {meta?.profiles[r.kind]?.label ?? r.kind} · {fmtTaxId(r.tax_id)}{r.client?.commercial ? ` · ${r.client.commercial}` : ""}</div>
                   </td>
                   <td><StatusMark status={r.status} /></td>
                   <td>

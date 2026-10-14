@@ -45,7 +45,7 @@ def test_roles_are_enforced_by_the_backend(client, analyst, auditor):
     reg = new_registration(client, analyst)
     # auditors read but never change anything
     assert client.get(f"/api/registrations/{reg['id']}", headers=auditor).status_code == 200
-    assert client.post("/api/registrations", json={"kind": "PF", "subject_name": "TESTE"}, headers=auditor).status_code == 403
+    assert client.post("/api/registrations", json={"kind": "PF", "subject_name": "TESTE", "modality": "normal"}, headers=auditor).status_code == 403
     assert upload(client, auditor, reg["id"], "a.png", b"x").status_code == 403
     # analysts cannot approve, reject, change settings, manage users or read the full audit log
     assert client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "approve"}, headers=analyst).status_code == 403

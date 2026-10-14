@@ -20,6 +20,8 @@ from app.models import (
     Document,
     Finding,
     FindingStatus,
+    Modality,
+    PortfolioClient,
     RegStatus,
     Registration,
     utcnow,
@@ -45,6 +47,8 @@ CHECK_STATE_LABELS = {
 
 class RegistrationIn(BaseModel):
     kind: str = Field(min_length=1, max_length=32)
+    modality: Literal["normal", "one7"]  # required: no default, the analyst chooses
+    client_id: uuid.UUID | None = None
     subject_name: str = Field(min_length=3, max_length=300)
     tax_id: str | None = Field(None, max_length=32)
     reference_fields: dict[str, str] = Field(default_factory=dict)
@@ -59,6 +63,9 @@ class RegistrationIn(BaseModel):
 
 class RegistrationPatch(BaseModel):
     subject_name: str | None = Field(None, min_length=3, max_length=300)
+    modality: Literal["normal", "one7"] | None = None
+    client_id: uuid.UUID | None = None
+    clear_client: bool = False
     tax_id: str | None = Field(None, max_length=32)
     reference_fields: dict[str, str] | None = None
 
@@ -102,6 +109,17 @@ def next_code(db: Session) -> str:
     return f"CAD-{year}-{row.value:06d}"
 
 
+def _portfolio_client(db: Session, client_id: uuid.UUID | None, modality: str) -> PortfolioClient | None:
+    if client_id is None:
+        return None
+    client = db.get(PortfolioClient, client_id)
+    if client is None:
+        raise ApiError(422, "invalid_client", "Cliente da carteira não encontrado.")
+    if client.modality != modality:
+        raise ApiError(422, "modality_mismatch", f"O cliente escolhido é da carteira {Modality.LABELS[client.modality]}; a modalidade do cadastro precisa ser a mesma.")
+    return client
+
+
 def get_registration(db: Session, rid: uuid.UUID) -> Registration:
     reg = db.get(Registration, rid)
     if reg is None:
@@ -114,6 +132,7 @@ def list_registrations(
     q: str | None = Query(None, max_length=100),
     status: str | None = None,
     kind: str | None = None,
+    modality: Literal["normal", "one7"] | None = None,
     ready: bool | None = None,
     sort: Literal["priority", "created", "updated", "name", "code"] = "priority",
     direction: Literal["asc", "desc"] = "desc",
@@ -134,6 +153,8 @@ def list_registrations(
         stmt = stmt.where(Registration.status.in_([s for s in status.split(",") if s in RegStatus.ALL]))
     if kind:
         stmt = stmt.where(Registration.kind == kind)
+    if modality:
+        stmt = stmt.where(Registration.modality == modality)
     if ready is not None:
         stmt = stmt.where(Registration.ready_for_decision.is_(ready))
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
@@ -156,9 +177,12 @@ def create_registration(body: RegistrationIn, p: Principal = Depends(OPERATORS),
     if body.kind not in profiles:
         raise ApiError(422, "invalid_kind", "Tipo de cadastro desconhecido.")
     tax_id = _validate_tax_id(profiles[body.kind], body.tax_id)
+    client = _portfolio_client(db, body.client_id, body.modality)
     reg = Registration(
         code=next_code(db),
         kind=body.kind,
+        modality=body.modality,
+        client=client,
         subject_name=" ".join(body.subject_name.split()).upper(),
         tax_id=tax_id,
         reference_fields=body.reference_fields,
@@ -169,7 +193,7 @@ def create_registration(body: RegistrationIn, p: Principal = Depends(OPERATORS),
     db.flush()
     analyze_registration(db, reg.id)
     audit.record(db, "registration.created", actor=p.user, entity_type="registration", entity_id=reg.id, registration_id=reg.id,
-                 details={"code": reg.code, "kind": reg.kind}, ip=p.ip)
+                 details={"code": reg.code, "kind": reg.kind, "modality": reg.modality}, ip=p.ip)
     db.commit()
     return registration_row(reg, 0)
 
@@ -217,7 +241,16 @@ def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = 
     reg = get_registration(db, rid)
     if reg.status in RegStatus.CLOSED:
         raise ApiError(409, "registration_closed", "Cadastro reprovado. Reabra-o antes de editar.")
-    before = {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields}
+    before = {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields,
+              "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None}
+    if body.modality is not None:
+        reg.modality = body.modality
+    if body.clear_client:
+        reg.client = None
+    elif body.client_id is not None:
+        reg.client = _portfolio_client(db, body.client_id, reg.modality)
+    elif reg.client_id and body.modality is not None:
+        _portfolio_client(db, reg.client_id, reg.modality)
     if body.subject_name is not None:
         reg.subject_name = " ".join(body.subject_name.split()).upper()
     if body.tax_id is not None:
@@ -226,7 +259,8 @@ def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = 
         reg.reference_fields = body.reference_fields
     analyze_registration(db, reg.id)
     audit.record(db, "registration.updated", actor=p.user, entity_type="registration", entity_id=reg.id, registration_id=reg.id,
-                 details={"before": before, "after": {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields}}, ip=p.ip)
+                 details={"before": before, "after": {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields,
+                                                      "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None}}, ip=p.ip)
     db.commit()
     return registration_row(reg)
 

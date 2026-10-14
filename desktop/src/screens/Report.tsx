@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toPng } from "html-to-image";
-import { forwardRef, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, apiBlob } from "../api/client";
 import type { ChecklistItem, RegistrationDetail } from "../api/types";
@@ -9,13 +8,14 @@ import { Mark as LogoMark } from "../components/Logo";
 import { Dialog, ErrorBox, Skeleton, errorText, useToast } from "../components/ui";
 import { CHECK_STATE, SEVERITY, fmtDate, fmtDateTime } from "../lib/format";
 import { isTauri } from "../lib/files";
+import { exportSheetPng, useFitScale } from "../lib/sheet";
 import "./report.css";
 
 interface Report {
   generated_at: string;
   generated_by: string;
   reference_date: string;
-  registration: { id: string; code: string; kind_label: string; status: string; ready_for_decision: boolean };
+  registration: { id: string; code: string; kind_label: string; modality_label: string; status: string; ready_for_decision: boolean };
   company: { razao_social: string; cnpj: string | null; tax_id_label: string | null; endereco: string | null; situacao_cadastral: string | null };
   partners: { nome: string; cpf: string | null; fora_do_quadro?: boolean; irpf: { exercicio: string | null; bens: number | null; dividas: number | null; dividendos: number | null }[] }[];
   revenue: {
@@ -81,38 +81,15 @@ export function Report() {
   const imgs = useImages(q.data);
   const sheet = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const scale = useFitScale(frame, q.data);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
-
-  useLayoutEffect(() => {
-    const fit = () => frame.current && setScale(Math.min(1, frame.current.clientWidth / 1600));
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, [q.data]);
 
   async function exportPng() {
     if (!sheet.current || !q.data) return;
     setBusy(true);
     try {
-      await document.fonts.ready;
-      const url = await toPng(sheet.current, { pixelRatio: 2, cacheBust: true, backgroundColor: "#ffffff" });
-      const name = `analise-${q.data.registration.code}.png`;
-      if (isTauri()) {
-        const { save } = await import("@tauri-apps/plugin-dialog");
-        const { writeFile } = await import("@tauri-apps/plugin-fs");
-        const path = await save({ defaultPath: name, filters: [{ name: "Imagem PNG", extensions: ["png"] }] });
-        if (!path) return;
-        const bytes = Uint8Array.from(atob(url.split(",")[1]), (c) => c.charCodeAt(0));
-        await writeFile(path, bytes);
-        toast("Imagem salva.");
-      } else {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = name;
-        a.click();
-      }
+      if (await exportSheetPng(sheet.current, `analise-${q.data.registration.code}.png`) && isTauri()) toast("Imagem salva.");
     } catch (e) {
       toast(`Não foi possível gerar a imagem: ${errorText(e)}`, "danger");
     } finally {
@@ -191,7 +168,7 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
         </div>
         <div className="rs-head">
           <div className="rs-wordmark"><LogoMark size={26} /><span>CadastroAI</span></div>
-          <div className="rs-tab"><span>{rep.registration.code}</span><span>{rep.registration.kind_label}</span><span>Referência {fmtDate(rep.reference_date)}</span></div>
+          <div className="rs-tab"><span>{rep.registration.code}</span><span>{rep.registration.kind_label}, {rep.registration.modality_label}</span><span>Referência {fmtDate(rep.reference_date)}</span></div>
         </div>
       </header>
 

@@ -17,7 +17,11 @@ import { Landing } from "./screens/Landing";
 import { Login } from "./screens/Login";
 import { Queue } from "./screens/Queue";
 import { RegistrationDetail } from "./screens/RegistrationDetail";
+import { Portfolio } from "./screens/Portfolio";
 import { Registrations } from "./screens/Registrations";
+import { ReportImage } from "./screens/ReportImage";
+import { Reports } from "./screens/Reports";
+import { Signatures } from "./screens/Signatures";
 import { Report } from "./screens/Report";
 import { Settings } from "./screens/Settings";
 
@@ -50,6 +54,10 @@ function Routed() {
         <Route path="cadastros/:id" element={<RegistrationDetail />} />
         <Route path="cadastros/:id/relatorio" element={<Report />} />
         <Route path="documentos/:id" element={<DocumentReview />} />
+        <Route path="carteira" element={<Portfolio />} />
+        <Route path="assinaturas" element={<Signatures />} />
+        <Route path="relatorios" element={<Reports />} />
+        <Route path="relatorios/imagem" element={<ReportImage />} />
         <Route path="entrada" element={<Inbox />} />
         <Route path="historico" element={<History />} />
         <Route path="configuracoes" element={<Settings />} />

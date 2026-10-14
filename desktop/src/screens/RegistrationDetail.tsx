@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { Decision, DocumentBrief, Finding, InfoItem, RegistrationDetail as R } from "../api/types";
+import type { Decision, DocumentBrief, Finding, InfoItem, Modality, Page, PortfolioClient, RegistrationDetail as R } from "../api/types";
 import { useAuth, usePerm } from "../auth";
 import { FindingCard } from "../components/FindingCard";
+import { ModalityTag } from "../components/ModalitySwitch";
 import { UploadZone } from "../components/Upload";
 import { Dialog, ErrorBox, Mark, Skeleton, StatusMark, errorText, useToast } from "../components/ui";
 import { ACTIONS, CHECK_STATE, VALIDITY, fmtDate, fmtDateTime, fmtFieldValue, fmtTaxId, plural, relative } from "../lib/format";
+import { MODALITY_LABEL } from "../lib/modality";
 import "./detail.css";
 
 const SEV_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
@@ -19,6 +21,7 @@ export function RegistrationDetail() {
   const perm = usePerm();
   const [deciding, setDeciding] = useState<Decision["action"] | null>(null);
   const [showClosed, setShowClosed] = useState(false);
+  const [linking, setLinking] = useState(false);
 
   const q = useQuery({
     queryKey: ["registration", id],
@@ -59,8 +62,11 @@ export function RegistrationDetail() {
           <h1>{r.subject_name}</h1>
           <p className="detail-sub">
             <StatusMark status={r.status} />
+            <ModalityTag modality={r.modality} />
             <span className="num">{r.code}</span>
             <span>{meta?.profiles[r.kind]?.label ?? r.kind}</span>
+            {r.client && <Link to={`/carteira?cliente=${r.client.id}`}>Carteira: {r.client.name}{r.client.commercial ? `, ${r.client.commercial}` : ""}</Link>}
+            {perm.operate && !closed && <button className="link-btn meta" onClick={() => setLinking(true)}>{r.client ? "Alterar modalidade ou cliente" : "Modalidade e cliente da carteira"}</button>}
             <span className="num">{fmtTaxId(r.tax_id)}</span>
             <span className="muted">Criado {relative(r.created_at)}{r.created_by ? ` por ${r.created_by.name}` : ""}</span>
           </p>
@@ -178,6 +184,7 @@ export function RegistrationDetail() {
           </section>
         </div>
       </div>
+      {linking && <LinkDialog r={r} onClose={() => setLinking(false)} />}
       {deciding && <DecisionDialog r={r} action={deciding} onClose={() => setDeciding(null)} />}
     </div>
   );
@@ -327,6 +334,51 @@ const DECISION_COPY: Record<Decision["action"], { title: string; button: string;
   escalate: { title: "Escalar para supervisão", button: "Escalar", reasonLabel: "O que o supervisor precisa avaliar", min: 10 },
   reopen: { title: "Reabrir cadastro", button: "Reabrir", reasonLabel: "Motivo da reabertura", min: 10 },
 };
+
+function LinkDialog({ r, onClose }: { r: R; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [modality, setModalityChoice] = useState<Modality>(r.modality);
+  const [clientId, setClientId] = useState(r.client?.id ?? "");
+  const clients = useQuery({
+    queryKey: ["portfolio-clients-names", modality],
+    queryFn: () => api<Page<PortfolioClient>>(`/api/portfolio/clients?modality=${modality}&sort=name&page_size=500`),
+  });
+  const save = useMutation({
+    mutationFn: () => api(`/api/registrations/${r.id}`, { method: "PATCH", json: clientId ? { modality, client_id: clientId } : { modality, clear_client: true } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["registration", r.id] });
+      qc.invalidateQueries({ queryKey: ["registrations"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast("Modalidade e cliente salvos.");
+      onClose();
+    },
+  });
+  return (
+    <Dialog title="Modalidade e cliente da carteira" onClose={onClose}>
+      <p className="muted" style={{ marginBottom: 16 }}>O cadastro entra nos números da modalidade escolhida. O cliente, se houver, precisa ser da mesma carteira.</p>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <div className="segmented" role="radiogroup" aria-label="Modalidade">
+          {(["normal", "one7"] as Modality[]).map((m) => (
+            <button type="button" role="radio" key={m} aria-checked={modality === m} aria-pressed={modality === m} onClick={() => { setModalityChoice(m); setClientId(""); }}>{MODALITY_LABEL[m]}</button>
+          ))}
+        </div>
+        <label className="label">
+          <span>Cliente da carteira {MODALITY_LABEL[modality]}</span>
+          <select className="select" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+            <option value="">Nenhum</option>
+            {clients.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.commercial ? `, ${c.commercial.name}` : ""}</option>)}
+          </select>
+        </label>
+        {save.isError && <p className="form-error">{errorText(save.error)}</p>}
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
 
 function DecisionDialog({ r, action, onClose }: { r: R; action: Decision["action"]; onClose: () => void }) {
   const qc = useQueryClient();

@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { Dashboard, RegistrationRow } from "../api/types";
+import type { Dashboard, Modality, Page, PortfolioClient, RegistrationRow } from "../api/types";
 import { useAuth, usePerm } from "../auth";
 import { ROLES } from "../lib/format";
+import { MODALITY_LABEL } from "../lib/modality";
 import { Logo } from "./Logo";
 import { Dialog, errorText } from "./ui";
 
@@ -19,6 +20,9 @@ export function Shell() {
     { to: "/", label: "Painel" },
     { to: "/fila", label: "Fila de revisão", count: c ? c.awaiting_review + c.processing_failed : undefined, hot: true },
     { to: "/cadastros", label: "Cadastros" },
+    { to: "/carteira", label: "Carteira" },
+    { to: "/assinaturas", label: "Assinaturas" },
+    { to: "/relatorios", label: "Relatórios" },
     { to: "/entrada", label: "Caixa de entrada", count: c?.inbox },
     { to: "/historico", label: "Histórico", show: perm.audit },
     { to: "/configuracoes", label: "Configurações", show: perm.admin || perm.approve },
@@ -65,11 +69,20 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient();
   const profiles = Object.entries(meta?.profiles ?? {});
   const [kind, setKind] = useState(profiles[0]?.[0] ?? "PF");
+  // no default: the analyst says which line of business this is
+  const [modality, setModalityChoice] = useState<Modality | null>(null);
+  const [clientId, setClientId] = useState("");
   const [name, setName] = useState("");
   const [taxId, setTaxId] = useState("");
+  const [tried, setTried] = useState(false);
   const kindInfo = meta?.profiles[kind];
+  const clients = useQuery({
+    queryKey: ["portfolio-clients-names", modality],
+    enabled: !!modality,
+    queryFn: () => api<Page<PortfolioClient>>(`/api/portfolio/clients?modality=${modality}&sort=name&page_size=500`),
+  });
   const create = useMutation({
-    mutationFn: () => api<RegistrationRow>("/api/registrations", { method: "POST", json: { kind, subject_name: name, tax_id: taxId || null } }),
+    mutationFn: () => api<RegistrationRow>("/api/registrations", { method: "POST", json: { kind, modality, client_id: clientId || null, subject_name: name, tax_id: taxId || null } }),
     onSuccess: (reg) => {
       qc.invalidateQueries({ queryKey: ["registrations"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -79,7 +92,14 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
   });
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    setTried(true);
+    if (!modality) return;
     create.mutate();
+  };
+  const pickClient = (id: string) => {
+    setClientId(id);
+    const c = clients.data?.items.find((x) => x.id === id);
+    if (c && !name.trim()) setName(c.name);
   };
   return (
     <Dialog title="Novo cadastro" onClose={onClose}>
@@ -87,6 +107,29 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
         Depois de criar, anexe os documentos. A análise começa assim que cada arquivo chega.
       </p>
       <form className="form-grid" onSubmit={submit}>
+        <fieldset className="label field-set" aria-invalid={tried && !modality}>
+          <legend>Modalidade</legend>
+          <div className="segmented" role="radiogroup" aria-label="Modalidade" aria-required="true">
+            {(["normal", "one7"] as Modality[]).map((m) => (
+              <button type="button" role="radio" key={m} aria-checked={modality === m} aria-pressed={modality === m}
+                onClick={() => { setModalityChoice(m); setClientId(""); }}>
+                {MODALITY_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          {tried && !modality && <span className="form-error">Escolha a modalidade do cadastro.</span>}
+        </fieldset>
+        {modality && (
+          <label className="label">
+            <span>Cliente da carteira {MODALITY_LABEL[modality]} (opcional)</span>
+            <select className="select" value={clientId} onChange={(e) => pickClient(e.target.value)}>
+              <option value="">Nenhum: cliente ainda fora da carteira</option>
+              {clients.data?.items.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}{c.commercial ? `, ${c.commercial.name}` : ""}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="segmented" role="group" aria-label="Tipo de cadastro">
           {profiles.map(([k, p]) => (
             <button type="button" key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>
@@ -107,7 +150,7 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
           <button type="button" className="btn btn-ghost" onClick={onClose}>
             Cancelar
           </button>
-          <button className="btn btn-primary" disabled={create.isPending || name.trim().length < 3}>
+          <button className="btn btn-primary" disabled={create.isPending || name.trim().length < 3 || (tried && !modality)}>
             {create.isPending ? "Criando…" : "Criar e anexar documentos"}
           </button>
         </div>

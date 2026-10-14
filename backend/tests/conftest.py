@@ -61,7 +61,8 @@ def database():
 
 TABLES = [
     "extracted_fields", "findings", "processing_jobs", "decisions", "ingest_records", "watcher_status",
-    "app_settings", "counters", "user_sessions", "documents", "registrations", "users",
+    "app_settings", "counters", "user_sessions", "documents", "registrations", "signature_contracts",
+    "signature_trackings", "portfolio_clients", "commercials", "data_imports", "users",
 ]
 
 
@@ -147,8 +148,10 @@ def auditor(client):
     return login(client, make_user("auditor"))
 
 
-def new_registration(client, headers, name="MARIA APARECIDA DOS SANTOS SILVA", cpf=None, kind="PF"):
-    body = {"kind": kind, "subject_name": name}
+def new_registration(client, headers, name="MARIA APARECIDA DOS SANTOS SILVA", cpf=None, kind="PF", modality="normal", client_id=None):
+    body = {"kind": kind, "subject_name": name, "modality": modality}
+    if client_id:
+        body["client_id"] = client_id
     if cpf:
         body["tax_id"] = cpf
     r = client.post("/api/registrations", json=body, headers=headers)

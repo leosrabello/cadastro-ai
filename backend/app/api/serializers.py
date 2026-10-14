@@ -65,6 +65,8 @@ def registration_row(r: Registration, doc_count: int | None = None, open_finding
         "id": str(r.id),
         "code": r.code,
         "kind": r.kind,
+        "modality": r.modality,
+        "client": {"id": str(r.client.id), "name": r.client.name, "commercial": r.client.commercial.name if r.client.commercial else None} if r.client else None,
         "subject_name": r.subject_name,
         "tax_id": r.tax_id,
         "status": r.status,

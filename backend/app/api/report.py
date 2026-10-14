@@ -19,7 +19,7 @@ from app.api.serializers import iso
 from app.db import get_db
 from app.deps import ANY_ROLE, Principal
 from app.errors import ApiError
-from app.models import Decision, DocStatus, Document, Finding, FindingStatus, utcnow
+from app.models import Decision, DocStatus, Document, Finding, FindingStatus, Modality, utcnow
 from app.pipeline.normalize import digits, format_cnpj, format_cpf, parse_money
 from app.settings_store import get_setting
 from app.storage import get_store
@@ -167,6 +167,7 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
         "generated_by": p.user.name,
         "reference_date": date.today().isoformat(),
         "registration": {"id": str(reg.id), "code": reg.code, "kind": reg.kind, "kind_label": profiles.get(reg.kind, {}).get("label", reg.kind),
+                         "modality": reg.modality, "modality_label": Modality.LABELS.get(reg.modality, reg.modality),
                          "status": reg.status, "created_at": iso(reg.created_at), "ready_for_decision": reg.ready_for_decision},
         "company": company,
         "partners": list(people.values()),
@@ -178,7 +179,8 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
         "findings": {"by_severity": by_sev, "top": top[:6]},
         "documents": [{"id": str(d.id), "type": types.get(d.doc_type, {}).get("label", d.doc_type or "Não identificado"),
                        "validity": (d.validity or {}).get("state"), "ai_summary": (d.classification or {}).get("ai_summary")} for d in docs],
-        "analysis": {k: refs.get(k) for k in ANALYST_FIELDS},
+        # the commercial comes from the linked portfolio client unless the analyst typed one
+        "analysis": {k: refs.get(k) or (reg.client.commercial.name if k == "comercial" and reg.client and reg.client.commercial else None) for k in ANALYST_FIELDS},
         "decision": {"action": decision.action, "reason": decision.reason, "by": decision.decided_by.name if decision.decided_by else None,
                      "at": iso(decision.decided_at)} if decision else None,
         "images": {"visit_document_id": str(visit.id) if visit else None, "page_document_ids": thumbs},

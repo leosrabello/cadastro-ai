@@ -182,3 +182,16 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 /* logo: the stamp and the wordmark in the display face */
 .logo { display: inline-flex; align-items: center; gap: 0.5em; font-weight: 600; letter-spacing: -0.03em; line-height: 1; font-variation-settings: "opsz" 48; color: var(--ink); }
 .logo-mark { flex: none; }
+
+/* ---------- modality (Normal / One7) ---------- */
+.modality-switch { display: inline-flex; align-items: center; gap: 10px; font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.01em; }
+.modality-side { background: none; border: 0; padding: 4px 2px; color: var(--muted); cursor: pointer; font: inherit; transition: color 160ms var(--ease); }
+.modality-side[aria-pressed="true"] { color: var(--ink); }
+.modality-side:hover { color: var(--ink); }
+/* both sides are a valid choice, so the track never reads as "off" */
+.modality-track { font-size: 22px; background: var(--surface-2); }
+.modality-track[aria-checked="false"]::after { background: var(--accent); }
+.modality-tag { display: inline-block; font-size: var(--step-meta); font-weight: 600; padding: 1px 7px; border-radius: 3px; background: var(--surface-2); color: var(--ink); white-space: nowrap; }
+.modality-tag[data-modality="one7"] { background: var(--accent); color: var(--accent-ink); }
+.field-set { border: 0; margin: 0; padding: 0; min-width: 0; }
+.field-set legend { padding: 0; margin-bottom: 6px; }

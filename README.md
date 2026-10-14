@@ -16,6 +16,10 @@ All employees work on the same registrations, documents, analyses and history on
 | Area | State |
 | --- | --- |
 | Registrations: create, search, filter, sort, paginate, detail | Working |
+| Modalities Normal and One7: required on every registration, switch on the Painel, filters on queue, list, portfolio and reports | Working |
+| Carteira: portfolio clients and commercials, import of the previous dashboard's JSON backup with preview, validation and idempotent reimport | Working ([docs/portfolio.md](docs/portfolio.md)) |
+| Assinaturas: SEC and FIDC contracts per company, average signing time, follow-ups | Working; dates typed from the signing portal, which has no integration |
+| Relatórios: portfolio indicators by modality or consolidated, by commercial, with filters and a PNG sheet | Working |
 | FinTrust 2026 checklist as the standard company profile (two stages, year-relative financials, signatures, required information) | Working |
 | Financial documents read: revenue tables, debt by institution, balance sheet lines, IRPF assets, customer concentration | Working, rule-based on text |
 | Analysis report rendered as a PNG for the credit committee | Working (desktop client export) |
@@ -32,7 +36,7 @@ All employees work on the same registrations, documents, analyses and history on
 | Roles, sessions, immediate revocation, rate limiting, retention and purge, legal hold, data-subject export | Working |
 | Windows installer | Build pipeline provided (GitHub Actions, Windows runner). Not produced from this Mac; the macOS bundle builds here |
 
-Backend: 83 automated tests against real PostgreSQL, Redis and Tesseract. See
+Backend: 109 automated tests against real PostgreSQL, Redis and Tesseract. See
 [docs/evaluation.md](docs/evaluation.md) for measured results on synthetic documents and what they
 do and do not mean.
 
@@ -51,11 +55,11 @@ file explains how to generate each). Then:
 docker compose up -d --build
 ```
 
-```bash
-docker compose exec api python scripts/seed_demo.py
-```
-
-The seed creates synthetic registrations and three demo users and prints their password once.
+Sign in with the bootstrap administrator and create the team's accounts in Configurações. There is
+no demo seed: the server starts empty. To bring in the clients and commercials of the previous
+dashboard, use Carteira, Importar dados with its `backup_cadastros_*.json` (see
+[docs/portfolio.md](docs/portfolio.md)). To remove test data from a server, see
+`backend/scripts/remove_test_data.py` (preview by default).
 
 Desktop client in a browser window (fastest for development):
 
@@ -91,6 +95,7 @@ docker compose run --rm api python scripts/evaluate.py --n 60
 | [Security, privacy and LGPD](docs/security-privacy-lgpd.md) | Controls, legal basis, retention, data-subject rights, vendors, prompt injection |
 | [Evaluation](docs/evaluation.md) | What is measured, current synthetic results, building a real labelled set |
 | [Costs](docs/costs.md) | Fixed and variable costs at different volumes, with assumptions |
+| [Carteira, modalidades, assinaturas e relatórios](docs/portfolio.md) | Normal/One7, import of the old dashboard, indicator rules, signature check, test-data cleanup |
 | [Design](docs/design.md) | How the installed Taste Skill shaped the interface |
 | [Integrations roadmap](docs/integrations-roadmap.md) | Outlook and WhatsApp intake |
 | [Known limitations](docs/limitations.md) | What is not done, not verified, or deliberately out of scope |

@@ -12,6 +12,13 @@
 
 ## Functional limits
 
+- **Signing portal.** No integration: Assinaturas records the dates the analyst checks on the
+  portal; nothing is queried or automated there.
+- **Status catalog and SLA** are settings (`client_statuses`, `portfolio`) editable through the
+  settings API; there is no screen for them yet.
+- **Commercials** can be renamed and deactivated, not merged; clients of two spellings of the same
+  person must be reassigned one by one.
+
 - Field extraction is rule-based and tuned on the layouts in `tests/synthetic.py`. Real RG layouts
   vary by state and era; new labels may need adding to `pipeline/extract.py` (or AI enabled to fill
   gaps). Phone photos with perspective distortion are not rectified.

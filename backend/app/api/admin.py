@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Body, Depends
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -153,6 +153,30 @@ class Consistency(BaseModel):
     registration_name_match: dict[str, Any]
 
 
+class ClientStatus(BaseModel):
+    key: str = Field(pattern=r"^[a-z0-9_]{2,64}$")
+    label: str = Field(min_length=2, max_length=80)
+    outcome: Literal["approved", "denied"] | None = None
+    opens_signature: bool = False
+
+
+class ClientStatuses(BaseModel):
+    normal: list[ClientStatus] = Field(min_length=1)
+    one7: list[ClientStatus] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _unique(self):
+        for name in ("normal", "one7"):
+            keys = [s.key for s in getattr(self, name)]
+            if len(keys) != len(set(keys)):
+                raise ValueError(f"status repetido em {name}")
+        return self
+
+
+class Portfolio(BaseModel):
+    sla_days: int = Field(7, ge=1, le=365)
+
+
 VALIDATORS = {
     "document_types": lambda v: {k: DocType.model_validate(x).model_dump(exclude_none=True) for k, x in v.items()},
     "requirement_profiles": lambda v: {k: Profile.model_validate(x).model_dump(exclude_none=True) for k, x in v.items()},
@@ -163,6 +187,8 @@ VALIDATORS = {
     "integrations": lambda v: Integrations.model_validate(v).model_dump(),
     "approval": lambda v: Approval.model_validate(v).model_dump(),
     "consistency_rules": lambda v: Consistency.model_validate(v).model_dump(),
+    "client_statuses": lambda v: ClientStatuses.model_validate(v).model_dump(exclude_defaults=True),
+    "portfolio": lambda v: Portfolio.model_validate(v).model_dump(),
 }
 
 
