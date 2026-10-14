@@ -32,6 +32,9 @@ PostgreSQL database as the registrations, with the same roles and audit trail.
 
 **Tables** (migration `0002_modality_and_portfolio.py`):
 - `commercials`: unique by an accent- and case-insensitive key, so `Gabriel` and `gabriel` are one commercial.
+  Two names of the same person are merged in Carteira, Comerciais, *Juntar com…* (supervisors):
+  clients and contracts move, and the merged name is kept as an alias (migration `0003`), so a
+  later import of the old backup resolves it to the surviving commercial instead of recreating it.
 - `portfolio_clients`: modality, status, business dates, flags, milestones, follow-ups, status
   history, the old dashboard's log, and `external_id`.
 - `signature_trackings` with `signature_contracts`: one SEC and one FIDC row per company.

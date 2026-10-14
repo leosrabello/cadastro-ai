@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { isInsecureRemote, servedByServer, serverUrl, setServerUrl } from "../api/client";
+import { ApiError, isInsecureRemote, servedByServer, serverUrl, setServerUrl } from "../api/client";
 import { useAuth } from "../auth";
 import { Logo } from "../components/Logo";
 import { Dialog, errorText } from "../components/ui";
@@ -13,15 +13,18 @@ export function Login() {
   const [error, setError] = useState<string | null>(sessionExpired ? "Sua sessão terminou. Entre novamente." : null);
   const [busy, setBusy] = useState(false);
   const [editingServer, setEditingServer] = useState(false);
+  const [networkError, setNetworkError] = useState(false);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
+    setNetworkError(false);
     try {
       await signIn(email.trim(), password);
     } catch (err) {
       setError(errorText(err));
+      setNetworkError(err instanceof ApiError && err.code === "network");
     } finally {
       setBusy(false);
     }
@@ -39,11 +42,10 @@ export function Login() {
     <div className="login">
       <div className="login-top">
         <Link to="/" className="login-back">Voltar</Link>
-        {!servedByServer && <button className="login-server" onClick={() => setEditingServer(true)}>Servidor: {host}</button>}
       </div>
       <main className="login-center">
         <h1 className="login-logo enter">
-          <span style={{ ["--i" as string]: 0 }}><Logo size={44} /></span>
+          <span style={{ ["--i" as string]: 0 }}><Logo size={80} /></span>
         </h1>
         <form className="login-form enter" onSubmit={submit}>
           <label className="label" style={{ ["--i" as string]: 1 }}>
@@ -57,6 +59,10 @@ export function Login() {
           {error && (
             <p className="form-error" role="alert">
               {error}
+              {/* the server address is only worth showing when it is the problem */}
+              {networkError && !servedByServer && (
+                <> <button type="button" className="link-btn" onClick={() => setEditingServer(true)}>Conferir o endereço do servidor ({host})</button></>
+              )}
             </p>
           )}
           <button className="btn btn-primary login-submit" disabled={busy} style={{ ["--i" as string]: 3 }}>

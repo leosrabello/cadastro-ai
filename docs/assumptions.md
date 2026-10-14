@@ -48,7 +48,7 @@ Source: "Checklist de Documentos - FinTrust 2026 (v2.1)". Applied as the standar
 | Registrations created before One7 existed here | Normal (migration default); changeable per registration |
 | One7 outcome | Apto a Operar, or the ONE7 committee result aprovado / negado. *Cedente Bloqueado* is not treated as a denial |
 | Custom statuses of the old dashboard (Aprovado na Libra, Stand By, Reanálise aprovada, Reanálise Negada) | In progress for the indicators, as in the old dashboard; an administrator can mark one as approved or denied in the `client_statuses` setting |
-| Commercial names | Kept as typed: "Breno/Leonardo", "Vittra" and "Vitra Connect" stay separate commercials until someone renames them |
+| Commercial names | Kept as typed; "Breno/Leonardo" is its own commercial. "Vitra Connect" was merged into "Vittra" on 2026-10-14 at the user's request; the merged name keeps resolving to Vittra on reimports |
 | Same-name folders in the file (PIERINO GOTTI twice) | Both kept; flagged in the preview |
 | Missing entry date | Imported as incomplete, excluded from time averages |
 | Signing time | From the contracts in Assinaturas (SEC and FIDC); the client's own dates only when it has no contracts there |

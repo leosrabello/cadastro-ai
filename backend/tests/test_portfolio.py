@@ -333,6 +333,29 @@ def test_commercials_are_unique_by_name(client, analyst, supervisor):
     assert r.json() == {"id": com["id"], "name": "Ana Paula Souza", "is_active": False}
 
 
+def test_merging_two_spellings_of_a_commercial_survives_reimport(client, supervisor, analyst):
+    doc = backup()
+    doc["assinaturas"][0]["comercial"] = "Vitra Connect"  # ALFA's contracts under another spelling of Vittra
+    doc["clients"][0]["comercial"] = "Vitra Connect"
+    do_import(client, supervisor, doc)
+    coms = {c["name"]: c for c in client.get("/api/portfolio/commercials", headers=supervisor).json()["items"]}
+    src, dst = coms["Vitra Connect"], coms["Vittra"]
+    assert (src["clients"], dst["clients"]) == (1, 1)
+
+    assert client.post(f"/api/portfolio/commercials/{src['id']}/merge", json={"into_id": dst["id"]}, headers=analyst).status_code == 403
+    r = client.post(f"/api/portfolio/commercials/{src['id']}/merge", json={"into_id": dst["id"]}, headers=supervisor)
+    assert r.status_code == 200 and r.json()["clients_moved"] == 1 and r.json()["signatures_moved"] == 1
+    coms = {c["name"]: c for c in client.get("/api/portfolio/commercials", headers=supervisor).json()["items"]}
+    assert "Vitra Connect" not in coms and coms["Vittra"]["clients"] == 2
+
+    # the old spelling now resolves to Vittra: nothing new, nothing changed, nothing skipped
+    again = do_import(client, supervisor, doc)
+    assert again["commercials"]["create"] == 0
+    assert again["clients"]["unchanged"] == 9 and again["clients"]["skipped"] == 0
+    assert again["signatures"]["unchanged"] == 2
+    assert client.post("/api/portfolio/commercials", json={"name": "vitra connect"}, headers=analyst).status_code == 409
+
+
 # ------------------------------------------------------------------ no fictitious data at startup
 
 def test_startup_inserts_no_clients_or_registrations(client):

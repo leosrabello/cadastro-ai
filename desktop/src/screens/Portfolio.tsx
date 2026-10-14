@@ -382,6 +382,7 @@ function Commercials() {
   const q = useQuery({ queryKey: ["portfolio-commercials"], queryFn: () => api<{ items: CommercialRow[]; without_commercial: number }>("/api/portfolio/commercials") });
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<CommercialRow | null>(null);
+  const [merging, setMerging] = useState<CommercialRow | null>(null);
   const refresh = () => { for (const k of ["portfolio-commercials", "portfolio-catalog", "portfolio-summary", "portfolio-clients"]) qc.invalidateQueries({ queryKey: [k] }); };
   const create = useMutation({
     mutationFn: () => api("/api/portfolio/commercials", { method: "POST", json: { name } }),
@@ -418,6 +419,7 @@ function Commercials() {
                   {(perm.approve || perm.admin) && (
                     <div className="row" style={{ justifyContent: "flex-end" }}>
                       <button className="btn btn-sm btn-ghost" onClick={() => setEditing(c)}>Renomear</button>
+                      <button className="btn btn-sm btn-ghost" onClick={() => setMerging(c)}>Juntar com…</button>
                       <button className="btn btn-sm btn-ghost" onClick={() => patch.mutate({ id: c.id, body: { is_active: !c.is_active } })}>{c.is_active ? "Desativar" : "Reativar"}</button>
                     </div>
                   )}
@@ -428,9 +430,38 @@ function Commercials() {
           </tbody>
         </table>
       )}
-      <p className="meta" style={{ marginTop: 12, maxWidth: "80ch" }}>Desativar tira o comercial das escolhas de novos clientes; os clientes e os números dele continuam. Nomes iguais com acentos ou maiúsculas diferentes são o mesmo comercial.</p>
+      <p className="meta" style={{ marginTop: 12, maxWidth: "80ch" }}>Desativar tira o comercial das escolhas de novos clientes; os clientes e os números dele continuam. Nomes iguais com acentos ou maiúsculas diferentes são o mesmo comercial. Juntar serve para dois nomes da mesma pessoa: os clientes e contratos passam para um só, e o outro nome continua reconhecido nas próximas importações.</p>
+      {merging && <MergeDialog c={merging} others={q.data.items.filter((x) => x.id !== merging.id)} onDone={() => { setMerging(null); refresh(); }} onClose={() => setMerging(null)} />}
       {editing && <RenameDialog c={editing} pending={patch.isPending} error={patch.error} onSave={(n) => patch.mutate({ id: editing.id, body: { name: n } })} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+function MergeDialog({ c, others, onDone, onClose }: { c: CommercialRow; others: CommercialRow[]; onDone: () => void; onClose: () => void }) {
+  const toast = useToast();
+  const [into, setInto] = useState("");
+  const target = others.find((o) => o.id === into);
+  const merge = useMutation({
+    mutationFn: () => api<{ name: string; clients_moved: number; signatures_moved: number }>(`/api/portfolio/commercials/${c.id}/merge`, { method: "POST", json: { into_id: into } }),
+    onSuccess: (r) => { toast(`${c.name} juntado a ${r.name}: ${plural(r.clients_moved, "cliente", "clientes")} e ${plural(r.signatures_moved, "registro de assinatura", "registros de assinatura")}.`); onDone(); },
+  });
+  return (
+    <Dialog title={`Juntar ${c.name} com outro comercial`} onClose={onClose}>
+      <p className="muted" style={{ marginBottom: 16 }}>Use quando os dois nomes são a mesma pessoa. {c.name} deixa de existir; os clientes e contratos dele passam para o comercial escolhido.</p>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); merge.mutate(); }}>
+        <label className="label"><span>Fica com o nome de</span>
+          <select className="select" value={into} required onChange={(e) => setInto(e.target.value)}>
+            <option value="">Escolha o comercial</option>
+            {others.map((o) => <option key={o.id} value={o.id}>{o.name} ({plural(o.clients, "cliente", "clientes")})</option>)}
+          </select></label>
+        {target && <p className="meta">Depois: {target.name} com {plural(target.clients + c.clients, "cliente", "clientes")}.</p>}
+        {merge.isError && <p className="form-error">{errorText(merge.error)}</p>}
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!into || merge.isPending}>{merge.isPending ? "Juntando…" : "Juntar"}</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

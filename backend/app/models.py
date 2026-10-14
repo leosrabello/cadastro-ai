@@ -150,6 +150,7 @@ class Commercial(Base):
     id: Mapped[uuid.UUID] = uuid_pk()
     name: Mapped[str] = mapped_column(String(120))
     name_key: Mapped[str] = mapped_column(String(120), unique=True)  # accent- and case-insensitive identity
+    aliases: Mapped[list] = mapped_column(JSONB, default=list)  # name keys of commercials merged into this one
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

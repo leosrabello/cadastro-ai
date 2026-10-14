@@ -6,7 +6,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app import audit
@@ -24,6 +24,7 @@ from app.portfolio import (
     change_status,
     clean_name,
     commercial_brief,
+    commercial_index,
     ensure_signature_tracking,
     get_or_create_commercial,
     iso_date,
@@ -62,6 +63,10 @@ class CommercialIn(BaseModel):
     name: str = Field(min_length=2, max_length=120)
 
 
+class CommercialMerge(BaseModel):
+    into_id: uuid.UUID
+
+
 class CommercialPatch(BaseModel):
     name: str | None = Field(None, min_length=2, max_length=120)
     is_active: bool | None = None
@@ -82,7 +87,7 @@ def list_commercials(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get
 @router.post("/portfolio/commercials", status_code=201)
 def create_commercial(body: CommercialIn, p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
     name = clean_name(body.name)
-    if db.execute(select(Commercial).where(Commercial.name_key == name_key(name))).scalar_one_or_none():
+    if name_key(name) in commercial_index(db):
         raise ApiError(409, "duplicate", "Já existe um comercial com esse nome.")
     com = get_or_create_commercial(db, name)
     audit.record(db, "commercial.created", actor=p.user, entity_type="commercial", entity_id=com.id, details={"name": com.name}, ip=p.ip)
@@ -98,9 +103,11 @@ def update_commercial(cid: uuid.UUID, body: CommercialPatch, p: Principal = Depe
     before = {"name": com.name, "is_active": com.is_active}
     if body.name is not None:
         name = clean_name(body.name)
-        other = db.execute(select(Commercial).where(Commercial.name_key == name_key(name), Commercial.id != com.id)).scalar_one_or_none()
-        if other:
+        other = commercial_index(db).get(name_key(name))
+        if other and other.id != com.id:
             raise ApiError(409, "duplicate", "Já existe um comercial com esse nome.")
+        if com.name_key != name_key(name):
+            com.aliases = sorted({*(com.aliases or []), com.name_key} - {name_key(name)})  # the old spelling keeps resolving here
         com.name, com.name_key = name, name_key(name)
     if body.is_active is not None:
         com.is_active = body.is_active
@@ -109,6 +116,27 @@ def update_commercial(cid: uuid.UUID, body: CommercialPatch, p: Principal = Depe
                  details={"before": before, "after": {"name": com.name, "is_active": com.is_active}}, ip=p.ip)
     db.commit()
     return {"id": str(com.id), "name": com.name, "is_active": com.is_active}
+
+
+@router.post("/portfolio/commercials/{cid}/merge")
+def merge_commercial(cid: uuid.UUID, body: CommercialMerge, p: Principal = Depends(SUPERVISORS), db: Session = Depends(get_db)):
+    """Two spellings of the same person: clients and contracts move to `into`, this one disappears,
+    and its name keeps pointing to `into` on later imports."""
+    src, dst = db.get(Commercial, cid), db.get(Commercial, body.into_id)
+    if src is None or dst is None:
+        raise ApiError(404, "not_found", "Comercial não encontrado.")
+    if src.id == dst.id:
+        raise ApiError(422, "same_commercial", "Escolha outro comercial para juntar.")
+    # updated_at is left alone: a merge is not an edit of the client, so later imports still update it
+    moved_clients = db.execute(update(PortfolioClient).where(PortfolioClient.commercial_id == src.id).values(commercial_id=dst.id)).rowcount
+    moved_contracts = db.execute(update(SignatureTracking).where(SignatureTracking.commercial_id == src.id).values(commercial_id=dst.id)).rowcount
+    dst.aliases = sorted({*(dst.aliases or []), *(src.aliases or []), src.name_key} - {dst.name_key})
+    dst.updated_at = utcnow()
+    audit.record(db, "commercial.merged", actor=p.user, entity_type="commercial", entity_id=dst.id,
+                 details={"from": src.name, "into": dst.name, "clients": moved_clients, "signatures": moved_contracts}, ip=p.ip)
+    db.delete(src)
+    db.commit()
+    return {"id": str(dst.id), "name": dst.name, "aliases": dst.aliases, "clients_moved": moved_clients, "signatures_moved": moved_contracts}
 
 
 # ---------------------------------------------------------------- clients

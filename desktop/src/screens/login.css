@@ -1,10 +1,14 @@
 /* Sign-in: one centred axis, one thing on the screen, wide empty flanks. */
 .login { min-height: 100%; display: grid; grid-template-rows: auto 1fr; background: var(--bg); }
-.login-top { display: flex; justify-content: space-between; padding: 24px clamp(16px, 2.2vw, 32px); font-size: 14px; }
-.login-back, .login-server { color: var(--muted); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; transition: color 140ms var(--ease); }
-.login-back:hover, .login-server:hover { color: var(--ink); }
+.login-top { display: flex; justify-content: space-between; padding: 24px clamp(16px, 2.2vw, 32px); font-size: var(--step-ui); }
+.login-back { color: var(--muted); text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; transition: color 140ms var(--ease); }
+.login-back:hover { color: var(--ink); }
 .login-center { display: grid; justify-items: center; align-content: center; padding-bottom: 12vh; }
-.login-logo { margin: 0 0 44px; font-size: inherit; }
-.login-form { width: min(360px, calc(100vw - 32px)); display: grid; gap: 14px; }
-.login-submit { width: 100%; height: 44px; justify-content: center; margin-top: 8px; font-size: 16px; }
-.login-help { text-align: center; margin-top: 4px; }
+.login-logo { margin: 0 0 64px; font-size: inherit; }
+/* sized for a sign-in seen from a normal distance on a large monitor */
+.login-form { width: clamp(min(440px, calc(100vw - 32px)), 36vw, 640px); display: grid; gap: 24px; font-size: var(--step-lead); }
+.login-form .label { font-size: var(--step-lead); gap: 10px; }
+.login-form .input { height: 64px; padding: 0 18px; font-size: var(--step-lead); }
+.login-submit { width: 100%; height: 64px; justify-content: center; margin-top: 8px; font-size: var(--step-lead); }
+.login-help { text-align: center; margin-top: 4px; font-size: var(--step-ui); }
+.login-form .form-error { font-size: var(--step-ui); }

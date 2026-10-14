@@ -16,8 +16,8 @@
   portal; nothing is queried or automated there.
 - **Status catalog and SLA** are settings (`client_statuses`, `portfolio`) editable through the
   settings API; there is no screen for them yet.
-- **Commercials** can be renamed and deactivated, not merged; clients of two spellings of the same
-  person must be reassigned one by one.
+- **Commercials** can be renamed, deactivated and merged; there is no un-merge (the audit event
+  records what moved).
 
 - Field extraction is rule-based and tuned on the layouts in `tests/synthetic.py`. Real RG layouts
   vary by state and era; new labels may need adding to `pipeline/extract.py` (or AI enabled to fill

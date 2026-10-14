@@ -71,12 +71,22 @@ def client_outcome(c: PortfolioClient, cat: Catalog) -> str | None:
     return None
 
 
+def commercial_index(db: Session) -> dict[str, Commercial]:
+    """Every name key that identifies a commercial, its own and those merged into it."""
+    index: dict[str, Commercial] = {}
+    for com in db.execute(select(Commercial)).scalars():
+        index[com.name_key] = com
+        for alias in com.aliases or []:
+            index.setdefault(alias, com)
+    return index
+
+
 def get_or_create_commercial(db: Session, name: str | None) -> Commercial | None:
     name = clean_name(name or "")
     if not name:
         return None
     key = name_key(name)
-    found = db.execute(select(Commercial).where(Commercial.name_key == key)).scalar_one_or_none()
+    found = commercial_index(db).get(key)
     if found:
         return found
     com = Commercial(name=name, name_key=key)

@@ -36,7 +36,7 @@ All employees work on the same registrations, documents, analyses and history on
 | Roles, sessions, immediate revocation, rate limiting, retention and purge, legal hold, data-subject export | Working |
 | Windows installer | Build pipeline provided (GitHub Actions, Windows runner). Not produced from this Mac; the macOS bundle builds here |
 
-Backend: 109 automated tests against real PostgreSQL, Redis and Tesseract. See
+Backend: 110 automated tests against real PostgreSQL, Redis and Tesseract. See
 [docs/evaluation.md](docs/evaluation.md) for measured results on synthetic documents and what they
 do and do not mean.
 

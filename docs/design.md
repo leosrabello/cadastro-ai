@@ -120,3 +120,7 @@ Requested: a landing page with a way in, a centred sign-in with a real logo, the
   (#6a9a1c, #2f78b0, plus the neutral #5c5c5c for denied).
 - **Gate:** lint 0 FAIL. Fixed on screenshots: wrapped day values, truncated selects, a figure
   size jump between "35,5 dias" and "4,8 dias", and "1 dias".
+
+**Sign-in, resized (2026-10-14):** at the user's request the form went from 360 to up to 640px
+(36vw), fields and button to 64px, labels and input text to 18px, the mark to 80px. The server
+address left the top bar; it is offered only inside the error when the server cannot be reached.

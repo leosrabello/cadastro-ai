@@ -24,6 +24,7 @@ from app.portfolio import (
     ONE7_RESULTS,
     Catalog,
     clean_name,
+    commercial_index,
     name_key,
     parse_iso_datetime,
 )
@@ -333,7 +334,13 @@ def build_plan(db: Session, data: bytes, filename: str) -> Plan:
 
     existing_clients = {c.external_id: c for c in db.execute(select(PortfolioClient).where(PortfolioClient.external_id.is_not(None))).scalars()}
     manual_by_name = {(c.modality, c.name_key): c for c in db.execute(select(PortfolioClient).where(PortfolioClient.external_id.is_(None))).scalars()}
-    known_commercials = set(db.execute(select(Commercial.name_key)).scalars())
+    index = commercial_index(db)
+    known_commercials = set(index)
+
+    def canonical(key: str) -> str:
+        # a name merged into another commercial resolves to the surviving one
+        return index[key].name_key if key in index else key
+
     new_commercials: dict[str, str] = {}
 
     seen_ids: set[str] = set()
@@ -373,7 +380,7 @@ def build_plan(db: Session, data: bytes, filename: str) -> Plan:
             if dup:
                 plan.issues.append(Issue(entity, "warning", f"Mesmo nome de outro registro do arquivo ({dup}); os dois foram mantidos. Confira se é a mesma pasta.", ref=ext, name=row["name"]))
             seen_names[(modality, row["name_key"])] = ext
-            ck = name_key(row["commercial"]) if row["commercial"] else ""
+            ck = canonical(name_key(row["commercial"])) if row["commercial"] else ""
             if ck and ck not in known_commercials and ck not in new_commercials:
                 new_commercials[ck] = row["commercial"]
             file_clients[ext] = row
@@ -398,12 +405,12 @@ def build_plan(db: Session, data: bytes, filename: str) -> Plan:
             else:
                 plan.clients.append({"action": "update", "ext": ext, "existing_id": current.id, "row": row, "reason": ", ".join(diff), "preview": preview})
 
-    _plan_signatures(db, doc, plan, file_clients, existing_clients, known_commercials, new_commercials)
+    _plan_signatures(db, doc, plan, file_clients, existing_clients, known_commercials, new_commercials, canonical)
     plan.new_commercials = sorted(new_commercials.values(), key=name_key)
     return plan
 
 
-def _plan_signatures(db, doc, plan, file_clients, existing_clients, known_commercials, new_commercials) -> None:
+def _plan_signatures(db, doc, plan, file_clients, existing_clients, known_commercials, new_commercials, canonical) -> None:
     existing = {t.external_id: t for t in db.execute(select(SignatureTracking).where(SignatureTracking.external_id.is_not(None))).scalars()}
     by_name: dict[str, list[tuple[str, str]]] = {}
     for ext, row in file_clients.items():
@@ -473,7 +480,7 @@ def _plan_signatures(db, doc, plan, file_clients, existing_clients, known_commer
             plan.issues.append(Issue("assinatura", "warning", f"Outro registro de assinatura já aponta para o mesmo cliente ({linked_to[client_ext]}). Confira se é repetido.", ref=ext, name=name))
         if client_ext:
             linked_to.setdefault(client_ext, ext)
-        ck = name_key(commercial) if commercial else ""
+        ck = canonical(name_key(commercial)) if commercial else ""
         if ck and ck not in known_commercials and ck not in new_commercials:
             new_commercials[ck] = commercial
 
@@ -524,7 +531,7 @@ def apply(db: Session, plan: Plan, user_id) -> dict:
     if plan.statuses_added or plan.statuses_relabeled:
         put_setting(db, "client_statuses", plan.catalog, user_id)
 
-    commercials = {c.name_key: c for c in db.execute(select(Commercial)).scalars()}
+    commercials = commercial_index(db)
 
     def commercial_for(name: str):
         if not name:
