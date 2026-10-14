@@ -104,6 +104,7 @@ docker compose run --rm api python scripts/evaluate.py --n 60
 | [Architecture](docs/architecture.md) | Components, data model, pipeline, statuses, intake abstraction |
 | [Configuration and credentials](docs/configuration.md) | Environment variables, Azure and Anthropic credentials, operational settings |
 | [OCR and AI providers](docs/providers.md) | Evaluation of providers and why Tesseract + optional Claude |
+| [Production on Azure](docs/production-azure.md) | The live server: address, network rules, secrets, backups, how to update |
 | [Deployment](docs/deployment.md) | Server, TLS, where the folder watcher runs and its permissions, backups, updates |
 | [Desktop app and Windows installer](docs/desktop.md) | Build, signing, distribution, updates |
 | [Security, privacy and LGPD](docs/security-privacy-lgpd.md) | Controls, legal basis, retention, data-subject rights, vendors, prompt injection |
