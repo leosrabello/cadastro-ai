@@ -81,6 +81,7 @@ class FindingStatus:
     ESCALATED = "escalated"
     OVERRIDDEN = "overridden"  # rule result overridden with documented reason
     SUPERSEDED = "superseded"  # no longer produced by the latest analysis
+    NOTE = "note"  # informative only: shown on the document, never a point to check (see pipeline/findings.triage)
     OPEN_STATES = (OPEN, ESCALATED)
 
 

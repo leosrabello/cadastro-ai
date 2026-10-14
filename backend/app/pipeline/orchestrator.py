@@ -403,8 +403,8 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
         if doc_type is None or type_conf < 0.5:
             if doc_type is not None:
                 drafts.append(FindingDraft(
-                    code="DOC_TYPE_DISAGREEMENT", category="quality", severity="low", source="ai", document_id=doc.id,
-                    title="Regras e IA classificaram de forma diferente",
+                    code="DOC_TYPE_SET_BY_AI", category="quality", severity="low", source="ai", document_id=doc.id,
+                    title="Tipo definido pela IA",
                     explanation=f"As regras sugeriram {doc_type}; a IA indicou {ai_type}. Foi adotada a indicação da IA porque a evidência das regras era fraca.",
                     recommended_action="Confirme o tipo do documento.",
                     rule_id="ai.type",
@@ -457,7 +457,7 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
             recommended_action=ob.recommended_action or "Confira no original.",
             evidence=[evidence("Trecho citado pela IA", ob.evidence_text, document_id=doc.id, field=ob.field or None, page=ob.page)] if ob.evidence_text else [],
             confidence=None, confidence_basis=f"Grau de clareza segundo a IA: {ob.certainty}. Não é uma probabilidade calibrada.",
-            rule_id="ai.observation",
+            certainty=ob.certainty, rule_id="ai.observation",
         ))
     if analysis.embedded_instructions_detected:
         drafts.append(FindingDraft(

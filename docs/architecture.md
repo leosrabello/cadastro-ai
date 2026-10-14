@@ -92,6 +92,24 @@ rows default to normal) and `registrations.client_id`, and the portfolio tables:
 `portfolio_clients`, `signature_trackings`, `signature_contracts`, `data_imports`. See
 [portfolio.md](portfolio.md).
 
+## Points to check and notes
+
+Every finding goes through a triage (`pipeline/findings.py`, `is_note`). Points to check are what
+asks for action:
+- missing or out-of-date documents, and required values that do not match;
+- conflicts between documents;
+- signs of alteration;
+- reuse of files;
+- disagreements between the AI's and the rules' reading or classification;
+- AI observations rated high, a possible alteration from medium, or an inconsistency the AI is
+  sure about.
+
+Everything else becomes a **note** (`status = "note"`). Notes are shown, folded, on the document
+page and never count in the queue, the priority, the checklist or the reports. This covers
+informative findings, incremental PDF saves, the ELA hint, several documents of the same type, a
+classification the AI settled, and AI observations that are low or uncertain. A reviewer's
+resolution is never changed by the triage.
+
 ## Statuses
 
 Registration: `awaiting_processing` (no documents yet) → `processing` → `awaiting_review` →

@@ -92,7 +92,7 @@ export interface Finding {
   confidence_basis: string | null;
   recommended_action: string | null;
   source: "rule" | "forensics" | "ai" | "system" | "human";
-  status: "open" | "accepted" | "escalated" | "overridden" | "superseded";
+  status: "open" | "accepted" | "escalated" | "overridden" | "superseded" | "note";
   resolved_by: { name: string } | null;
   resolved_at: string | null;
   resolution_note: string | null;

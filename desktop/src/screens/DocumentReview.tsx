@@ -23,6 +23,7 @@ export function DocumentReview() {
   const [page, setPage] = useState(Number(params.get("pagina") ?? 0));
   const [zoom, setZoom] = useState(1);
   const [hover, setHover] = useState<Region>(null);
+  const [showNotes, setShowNotes] = useState(false);
   const [focus, setFocus] = useState<Region>(() => {
     const r = params.get("regiao");
     return r ? { page: Number(params.get("pagina") ?? 0), bbox: r.split(",").map(Number) } : null;
@@ -85,6 +86,7 @@ export function DocumentReview() {
   const closed = d.registration?.status === "approved" || d.registration?.status === "rejected";
   const typeLabel = d.doc_type ? meta?.document_types[d.doc_type]?.label ?? d.doc_type : "Tipo não identificado";
   const openFindings = d.findings.filter((f) => f.status === "open" || f.status === "escalated");
+  const notes = d.findings.filter((f) => f.status === "note");
   const onEvidence = (e: Evidence) => {
     if (e.document_id && e.document_id !== d.id) {
       const qs = new URLSearchParams();
@@ -202,6 +204,18 @@ export function DocumentReview() {
                   <FindingCard f={f} onEvidence={onEvidence} closed={closed} />
                 </div>
               ))}
+            </div>
+          )}
+          {notes.length > 0 && (
+            <div className="notes">
+              <button className="link-btn meta" aria-expanded={showNotes} onClick={() => setShowNotes((v) => !v)}>
+                {showNotes ? "Ocultar" : "Ver"} {notes.length === 1 ? "1 observação" : `${notes.length} observações`} sem ação necessária
+              </button>
+              {showNotes && (
+                <div className="stack" style={{ marginTop: 10 }}>
+                  {notes.map((f) => <FindingCard key={f.id} f={f} compact closed onEvidence={onEvidence} />)}
+                </div>
+              )}
             </div>
           )}
         </section>

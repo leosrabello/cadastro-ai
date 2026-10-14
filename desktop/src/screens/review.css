@@ -36,3 +36,4 @@
 .processing-facts dl > div { display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
 .processing-facts dt { color: var(--muted); font-size: var(--step-meta); }
 .processing-facts dd { margin: 0; font-size: var(--step-meta); overflow-wrap: anywhere; }
+.notes { margin-top: 14px; }

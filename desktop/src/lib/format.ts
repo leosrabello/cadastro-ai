@@ -37,6 +37,7 @@ export const FINDING_STATUS: Record<string, string> = {
   escalated: "Escalado",
   overridden: "Regra sobreposta",
   superseded: "Não se aplica mais",
+  note: "Observação, sem ação necessária",
 };
 
 export const VALIDITY: Record<Validity["state"], { label: string; tone: string }> = {

@@ -36,8 +36,9 @@ export function RegistrationDetail() {
   const findings = useMemo(() => {
     const all = q.data?.findings ?? [];
     const open = all.filter((f) => f.status === "open" || f.status === "escalated").sort((a, b) => SEV_ORDER[a.severity] - SEV_ORDER[b.severity]);
-    const closed = all.filter((f) => !(f.status === "open" || f.status === "escalated"));
-    return { open, closed };
+    const closed = all.filter((f) => !(f.status === "open" || f.status === "escalated" || f.status === "note"));
+    const notes = all.filter((f) => f.status === "note").length;
+    return { open, closed, notes };
   }, [q.data]);
 
   if (q.isError) {
@@ -119,7 +120,10 @@ export function RegistrationDetail() {
           <section aria-labelledby="findings-h">
             <div className="spread section-head">
               <h2 id="findings-h">Pontos a conferir</h2>
-              <span className="meta">{findings.open.length ? plural(findings.open.length, "em aberto", "em aberto") : "Nenhum em aberto"}</span>
+              <span className="meta">
+                {findings.open.length ? plural(findings.open.length, "em aberto", "em aberto") : "Nenhum em aberto"}
+                {findings.notes > 0 && ` · ${plural(findings.notes, "observação", "observações")} sem ação, nos documentos`}
+              </span>
             </div>
             {findings.open.length === 0 ? (
               <p className="muted quiet-note">
