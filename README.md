@@ -73,6 +73,20 @@ Desktop client as the native app:
 cd desktop && npm run tauri dev
 ```
 
+Database in the browser (read-only, this computer only, at http://localhost:8081). The first time,
+fill `DB_READONLY_PASSWORD` in `.env` and create the read-only login:
+
+```bash
+set -a; . ./.env; set +a; docker compose exec -T db psql -U cadastro -d cadastro -v pw="$DB_READONLY_PASSWORD" < deploy/readonly-role.sql
+```
+
+```bash
+docker compose --profile ferramentas up -d dbweb
+```
+
+The viewer logs in as `leitura`, which can only SELECT (password hashes and sessions excluded), and
+pgweb runs in read-only mode as well. Changes go through the app, so they are validated and audited.
+
 Tests and evaluation:
 
 ```bash
