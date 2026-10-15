@@ -298,6 +298,16 @@ function Users() {
   const q = useQuery({ queryKey: ["users"], queryFn: () => api<{ items: User[] }>("/api/users") });
   const [form, setForm] = useState({ name: "", email: "", role: "analyst", password: "" });
   const [editing, setEditing] = useState<User | null>(null);
+  const [removing, setRemoving] = useState<User | null>(null);
+  const remove = useMutation({
+    mutationFn: (u: User) => api<{ mode: string; history_records: number }>(`/api/users/${u.id}`, { method: "DELETE" }),
+    onSuccess: (res, u) => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      setRemoving(null);
+      toast(res.mode === "removed" ? `Conta de ${u.name} excluída.` : `Conta de ${u.name} excluída. O nome continua no histórico do que foi feito com ela; o e-mail está livre para uma conta nova.`);
+    },
+    onError: (e) => toast(errorText(e), "danger"),
+  });
   const create = useMutation({
     mutationFn: () => api("/api/users", { method: "POST", json: form }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setForm({ name: "", email: "", role: "analyst", password: "" }); toast("Usuário criado. Entregue a senha inicial por um canal seguro."); },
@@ -326,6 +336,7 @@ function Users() {
                 <td>{u.is_active ? <Mark tone="accent">Ativo</Mark> : <Mark tone="muted">Desativado</Mark>}</td>
                 <td style={{ textAlign: "right" }}>
                   <button className="btn btn-sm btn-ghost" onClick={() => setEditing(u)}>Editar</button>{" "}
+                  {u.id !== meta?.user.id && <button className="btn btn-sm btn-ghost" onClick={() => setRemoving(u)}>Excluir</button>}{" "}
                   {u.id !== meta?.user.id && (
                     <button className={u.is_active ? "btn btn-sm btn-danger" : "btn btn-sm"} onClick={() => update.mutate({ id: u.id, body: { is_active: !u.is_active } })}>
                       {u.is_active ? "Revogar acesso" : "Reativar"}
@@ -351,6 +362,18 @@ function Users() {
         </div>
         <div><button className="btn btn-primary" disabled={create.isPending}>Criar usuário</button></div>
       </form>
+      {removing && (
+        <Dialog title={`Excluir ${removing.name}?`} onClose={() => setRemoving(null)}>
+          <p className="muted">
+            A conta deixa de existir e o acesso termina na hora. Se essa pessoa já registrou cadastros, documentos ou decisões, o nome dela continua aparecendo nesse histórico,
+            como exige a auditoria. Para só suspender o acesso por um tempo, use "Revogar acesso".
+          </p>
+          <div className="dialog-actions">
+            <button className="btn btn-ghost" onClick={() => setRemoving(null)}>Cancelar</button>
+            <button className="btn btn-danger" disabled={remove.isPending} onClick={() => remove.mutate(removing)}>{remove.isPending ? "Excluindo…" : "Excluir"}</button>
+          </div>
+        </Dialog>
+      )}
       {editing && <EditUser u={editing} self={editing.id === meta?.user.id} onClose={() => setEditing(null)} />}
     </div>
   );

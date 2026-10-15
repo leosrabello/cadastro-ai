@@ -187,3 +187,30 @@ def test_admin_edits_name_and_password_and_keeps_own_session(client, admin):
     me = client.get("/api/meta", headers=admin).json()["user"]["id"]
     assert client.patch(f"/api/users/{me}", json={"password": "Minha-Senha-Nova-1"}, headers=admin).status_code == 200
     assert client.get("/api/meta", headers=admin).status_code == 200  # the session in use stays open
+
+
+def test_deleting_employees_keeps_history_and_frees_the_email(client, admin, supervisor):
+    from tests.conftest import PASSWORD, make_user
+
+    users = lambda: {u["email"]: u for u in client.get("/api/users", headers=admin).json()["items"]}  # noqa: E731
+    idle = make_user("analyst", "nunca.usou@fintrust.local")
+    r = client.delete(f"/api/users/{users()[idle]['id']}", headers=admin)
+    assert r.status_code == 200 and r.json()["mode"] == "removed"
+    assert idle not in users()
+
+    worker = make_user("analyst", "trabalhou@fintrust.local")
+    from tests.conftest import login
+    h = login(client, worker)
+    reg = client.post("/api/registrations", json={"kind": "PF", "subject_name": "CLIENTE TESTE", "modality": "normal"}, headers=h).json()
+    r = client.delete(f"/api/users/{users()[worker]['id']}", headers=admin)
+    assert r.status_code == 200 and r.json()["mode"] == "retired" and r.json()["history_records"] >= 1
+    assert worker not in users()
+    assert client.get("/api/meta", headers=h).status_code == 401  # access ends at once
+    assert client.post("/api/auth/login", json={"email": worker, "password": PASSWORD}).status_code == 401
+    detail = client.get(f"/api/registrations/{reg['id']}", headers=admin).json()
+    assert detail["created_by"]["name"] == "Analyst Teste"  # history keeps who did it
+    assert client.post("/api/users", json={"email": worker, "name": "Nova Pessoa", "role": "analyst", "password": "Senha-Forte-456"}, headers=admin).status_code == 201
+
+    me = client.get("/api/meta", headers=admin).json()["user"]["id"]
+    assert client.delete(f"/api/users/{me}", headers=admin).status_code == 409
+    assert client.delete(f"/api/users/{me}", headers=supervisor).status_code == 403

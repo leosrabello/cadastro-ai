@@ -22,13 +22,12 @@ import os
 import sys
 from pathlib import Path
 
-from sqlalchemy import delete, or_, select, update
+from sqlalchemy import delete, select, update
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import audit  # noqa: E402
 from app.db import session_scope  # noqa: E402
 from app.models import (  # noqa: E402
-    Decision,
     Document,
     ExtractedField,
     Finding,
@@ -37,6 +36,7 @@ from app.models import (  # noqa: E402
     Registration,
     User,
 )
+from app.retention import delete_registration  # noqa: E402
 from app.storage import StorageUnavailable, get_store  # noqa: E402
 
 SYNTHETIC_MARK = "%SINT%TIC%SEM VALOR%"
@@ -110,18 +110,10 @@ def main() -> None:
             print("\nPrévia apenas. Rode de novo com --apply para remover.")
             return
 
-        reg_ids = [r.id for r in found]
-        regs_docs = db.execute(select(Document).where(Document.registration_id.in_(reg_ids))).scalars().all() if reg_ids else []
-        n_docs = remove_documents(db, list(regs_docs) + list(inbox))
-        if reg_ids:
-            db.execute(update(Document).where(Document.suggested_registration_id.in_(reg_ids)).values(suggested_registration_id=None))
-            db.execute(delete(Finding).where(Finding.registration_id.in_(reg_ids)))
-            db.execute(delete(Decision).where(Decision.registration_id.in_(reg_ids)))
+        n_docs = remove_documents(db, list(inbox))
         db.execute(delete(IngestRecord).where(IngestRecord.document_id.is_(None), IngestRecord.source_ref.in_(DEMO_FOLDER_FILES)))
         for reg, why in found.items():
-            audit.record(db, "registration.test_data_removed", actor_label="limpeza de dados de teste", entity_type="registration",
-                         entity_id=reg.id, registration_id=reg.id, details={"code": reg.code, "reason": why})
-            db.delete(reg)
+            n_docs += delete_registration(db, reg, "dados de teste: " + "; ".join(why), actor_label="limpeza de dados de teste")
         for u in demo_users:
             u.is_active = False
             audit.record(db, "user.deactivated", actor_label="limpeza de dados de teste", entity_type="user", entity_id=u.id,

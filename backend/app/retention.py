@@ -41,6 +41,37 @@ def purge_registration(db: Session, reg: Registration, reason: str, actor=None) 
     return purged
 
 
+def delete_registration(db: Session, reg: Registration, reason: str, actor=None, actor_label: str | None = None) -> int:
+    """Removes a registration for good: its documents and stored files, fields, findings, jobs and
+    decisions. The audit trail is append-only and keeps every past event; one more records the
+    deletion with the code and the reason, without personal data. Returns the documents removed."""
+    from sqlalchemy import delete, update
+
+    from app.models import Decision, ExtractedField, Finding, IngestRecord, ProcessingJob
+
+    store = get_store()
+    docs = db.execute(select(Document).where(Document.registration_id == reg.id)).scalars().all()
+    ids = [d.id for d in docs]
+    for d in docs:
+        if d.storage_key:
+            store.delete(d.storage_key)  # StorageUnavailable aborts the whole deletion
+    if ids:
+        db.execute(update(Document).where(Document.duplicate_of_id.in_(ids)).values(duplicate_of_id=None))
+        db.execute(delete(ExtractedField).where(ExtractedField.document_id.in_(ids)))
+        db.execute(delete(Finding).where(Finding.document_id.in_(ids)))
+        db.execute(delete(ProcessingJob).where(ProcessingJob.document_id.in_(ids)))
+        db.execute(delete(IngestRecord).where(IngestRecord.document_id.in_(ids)))
+        db.execute(delete(Document).where(Document.id.in_(ids)))
+    db.execute(update(Document).where(Document.suggested_registration_id == reg.id).values(suggested_registration_id=None))
+    db.execute(delete(Finding).where(Finding.registration_id == reg.id))
+    db.execute(delete(Decision).where(Decision.registration_id == reg.id))
+    audit.record(db, "registration.deleted", actor=actor, actor_label=actor_label, entity_type="registration", entity_id=reg.id,
+                 registration_id=reg.id, details={"code": reg.code, "reason": reason, "documents": len(ids)})
+    db.delete(reg)
+    db.flush()
+    return len(ids)
+
+
 def run(db: Session) -> dict:
     policy = get_setting(db, "retention")
     now = utcnow()

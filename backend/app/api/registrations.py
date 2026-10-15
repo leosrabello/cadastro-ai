@@ -28,7 +28,8 @@ from app.models import (
 )
 from app.pipeline.normalize import digits, valid_cnpj, valid_cpf
 from app.pipeline.orchestrator import analyze_registration
-from app.retention import purge_registration
+from app.retention import delete_registration, purge_registration
+from app.storage import StorageUnavailable
 from app.settings_store import get_setting
 
 router = APIRouter(prefix="/api/registrations", tags=["registrations"])
@@ -399,6 +400,28 @@ def export_subject_data(rid: uuid.UUID, p: Principal = Depends(SUPERVISORS), db:
         ],
         "processors": ["Armazenamento interno", "OCR: " + (docs[0].ocr_provider if docs and docs[0].ocr_provider else "tesseract (servidor próprio)")],
     }
+
+
+class DeleteIn(BaseModel):
+    reason: str = Field(min_length=10, max_length=1000)
+
+
+@router.post("/{rid}/delete")
+def delete_registration_endpoint(rid: uuid.UUID, body: DeleteIn, p: Principal = Depends(ADMINS), db: Session = Depends(get_db)):
+    """For registrations created by mistake, duplicated or for testing. Approved ones are kept for the
+    legal retention period (AML); a supervisor reopens one approved by mistake before it can be deleted."""
+    reg = get_registration(db, rid)
+    if reg.legal_hold:
+        raise ApiError(409, "legal_hold", "Cadastro sob retenção legal; remova a retenção antes de excluir.")
+    if reg.status == RegStatus.APPROVED:
+        raise ApiError(409, "retention_required", "Cadastros aprovados ficam guardados pelo prazo legal (5 anos após o fim do relacionamento). Se foi aprovado por engano, reabra-o antes de excluir.")
+    try:
+        count = delete_registration(db, reg, body.reason.strip(), actor=p.user)
+    except StorageUnavailable:
+        db.rollback()
+        raise ApiError(503, "storage_unavailable", "O armazenamento de documentos não respondeu; nada foi excluído. Tente de novo.")
+    db.commit()
+    return {"deleted": True, "documents": count}
 
 
 @router.post("/{rid}/purge")

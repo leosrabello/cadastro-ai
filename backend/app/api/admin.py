@@ -1,6 +1,7 @@
 """Administration: operational settings and user accounts. Secrets are never readable or writable here."""
 
 import re
+import secrets
 import uuid
 from typing import Any, Literal
 
@@ -250,6 +251,20 @@ def write_setting(key: str, value: Any = Body(...), p: Principal = Depends(ADMIN
     return {"key": key, "value": clean}
 
 
+def _user_references(db: Session, uid: uuid.UUID) -> int:
+    """How many records name this user as their author (registrations, decisions, documents, reviews...)."""
+    from app.models import Base
+
+    total = 0
+    for table in Base.metadata.sorted_tables:
+        if table.name == "user_sessions":
+            continue
+        for col in table.columns:
+            if any(fk.column.table.name == "users" for fk in col.foreign_keys):
+                total += db.execute(select(func.count()).select_from(table).where(col == uid)).scalar_one()
+    return total
+
+
 class UserIn(BaseModel):
     email: str = Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$", max_length=254)
     name: str = Field(min_length=2, max_length=200)
@@ -266,7 +281,7 @@ class UserPatch(BaseModel):
 
 @router.get("/users")
 def list_users(p: Principal = Depends(ADMINS), db: Session = Depends(get_db)):
-    return {"items": [user_full(u) for u in db.execute(select(User).order_by(User.name)).scalars()]}
+    return {"items": [user_full(u) for u in db.execute(select(User).where(User.deleted_at.is_(None)).order_by(User.name)).scalars()]}
 
 
 @router.post("/users", status_code=201)
@@ -328,3 +343,36 @@ def update_user(uid: uuid.UUID, body: UserPatch, p: Principal = Depends(ADMINS),
     audit.record(db, "user.updated", actor=p.user, entity_type="user", entity_id=user.id, details=changes, ip=p.ip)
     db.commit()
     return user_full(user)
+
+
+@router.delete("/users/{uid}")
+def delete_user(uid: uuid.UUID, p: Principal = Depends(ADMINS), db: Session = Depends(get_db)):
+    user = db.get(User, uid)
+    if user is None or user.deleted_at is not None:
+        raise ApiError(404, "not_found", "Usuário não encontrado.")
+    if user.id == p.user.id:
+        raise ApiError(409, "self_lockout", "Você não pode excluir a própria conta.")
+    if user.role == Role.ADMIN:
+        admins = db.execute(select(func.count(User.id)).where(User.role == Role.ADMIN, User.is_active.is_(True), User.deleted_at.is_(None), User.id != user.id)).scalar_one()
+        if not admins:
+            raise ApiError(409, "last_admin", "É o último administrador ativo; crie outro antes de excluir este.")
+    refs = _user_references(db, user.id)
+    label = {"name": user.name, "email": user.email, "role": user.role}
+    if refs == 0:
+        db.execute(UserSession.__table__.delete().where(UserSession.user_id == user.id))
+        db.delete(user)
+        mode = "removed"
+    else:
+        # the name stays on what this person did; the account and the e-mail are released
+        now = utcnow()
+        for s in db.execute(select(UserSession).where(UserSession.user_id == user.id, UserSession.revoked_at.is_(None))).scalars():
+            s.revoked_at = now
+        user.is_active = False
+        user.deactivated_at = user.deactivated_at or now
+        user.deleted_at = now
+        user.email = f"removido-{user.id.hex[:12]}@{user.email.split('@', 1)[-1]}"[:254]
+        user.password_hash = hash_password(secrets.token_urlsafe(32))
+        mode = "retired"
+    audit.record(db, "user.deleted", actor=p.user, entity_type="user", entity_id=uid, details={**label, "mode": mode, "history_records": refs}, ip=p.ip)
+    db.commit()
+    return {"deleted": True, "mode": mode, "history_records": refs}
