@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { api } from "../api/client";
 import type { User } from "../api/types";
 import { useAuth, usePerm } from "../auth";
-import { ErrorBox, LoadingRows, Mark, Switch, errorText, useToast } from "../components/ui";
+import { Dialog, ErrorBox, LoadingRows, Mark, Switch, errorText, useToast } from "../components/ui";
 import { ROLES, relative } from "../lib/format";
 import "./settings.css";
 
@@ -281,7 +281,7 @@ function Retention({ data, readOnly }: { data: SettingsData; readOnly: boolean }
     <form className="settings-form" onSubmit={(e) => { e.preventDefault(); save.mutate({ key: "retention", value: r }); }}>
       <Explain>Prazos de guarda. Ao vencer, os arquivos e dados pessoais são expurgados; a trilha de auditoria e os hashes permanecem. Cadastros sob retenção legal nunca são expurgados.</Explain>
       <div className="grid-3">
-        <label className="label"><span>Reprovados: expurgar após (dias)</span><input className="input num" type="number" min={30} value={r.rejected_days ?? ""} disabled={readOnly} onChange={(e) => setR({ ...r, rejected_days: e.target.value ? +e.target.value : null })} /></label>
+        <label className="label"><span>Reprovados: apagar após (dias; 0 = na hora da reprovação)</span><input className="input num" type="number" min={0} value={r.rejected_days ?? ""} disabled={readOnly} onChange={(e) => setR({ ...r, rejected_days: e.target.value ? +e.target.value : null })} /></label>
         <label className="label"><span>Pendentes sem resposta: expurgar após (dias)</span><input className="input num" type="number" min={30} value={r.abandoned_pending_days ?? ""} disabled={readOnly} onChange={(e) => setR({ ...r, abandoned_pending_days: e.target.value ? +e.target.value : null })} /></label>
       </div>
       <p className="muted">{r.approved_note}</p>
@@ -297,6 +297,7 @@ function Users() {
   const { meta } = useAuth();
   const q = useQuery({ queryKey: ["users"], queryFn: () => api<{ items: User[] }>("/api/users") });
   const [form, setForm] = useState({ name: "", email: "", role: "analyst", password: "" });
+  const [editing, setEditing] = useState<User | null>(null);
   const create = useMutation({
     mutationFn: () => api("/api/users", { method: "POST", json: form }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["users"] }); setForm({ name: "", email: "", role: "analyst", password: "" }); toast("Usuário criado. Entregue a senha inicial por um canal seguro."); },
@@ -324,6 +325,7 @@ function Users() {
                 <td className="meta num">{relative(u.last_login_at)}</td>
                 <td>{u.is_active ? <Mark tone="accent">Ativo</Mark> : <Mark tone="muted">Desativado</Mark>}</td>
                 <td style={{ textAlign: "right" }}>
+                  <button className="btn btn-sm btn-ghost" onClick={() => setEditing(u)}>Editar</button>{" "}
                   {u.id !== meta?.user.id && (
                     <button className={u.is_active ? "btn btn-sm btn-danger" : "btn btn-sm"} onClick={() => update.mutate({ id: u.id, body: { is_active: !u.is_active } })}>
                       {u.is_active ? "Revogar acesso" : "Reativar"}
@@ -349,7 +351,42 @@ function Users() {
         </div>
         <div><button className="btn btn-primary" disabled={create.isPending}>Criar usuário</button></div>
       </form>
+      {editing && <EditUser u={editing} self={editing.id === meta?.user.id} onClose={() => setEditing(null)} />}
     </div>
+  );
+}
+
+function EditUser({ u, self, onClose }: { u: User; self: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [name, setName] = useState(u.name);
+  const [password, setPassword] = useState("");
+  const save = useMutation({
+    mutationFn: () => api(`/api/users/${u.id}`, { method: "PATCH", json: { ...(name.trim() !== u.name ? { name: name.trim() } : {}), ...(password ? { password } : {}) } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast(password ? (self ? "Senha trocada. Suas outras sessões foram encerradas." : `Senha de ${name.trim()} trocada. Entregue a nova senha por um canal seguro.`) : "Nome atualizado.");
+      onClose();
+    },
+  });
+  const changed = name.trim() !== u.name || password.length > 0;
+  return (
+    <Dialog title={self ? "Editar minha conta" : `Editar ${u.name}`} onClose={onClose}>
+      <p className="muted" style={{ marginBottom: 16 }}>{u.email}</p>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <label className="label"><span>Nome</span><input className="input" required minLength={2} value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <label className="label">
+          <span>Nova senha (deixe em branco para manter a atual; 12+ caracteres, maiúsculas, minúsculas e número)</span>
+          <input className="input" type="password" minLength={12} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+        </label>
+        {password && !self && <p className="meta">As sessões abertas dessa pessoa são encerradas; ela entra de novo com a senha nova.</p>}
+        {save.isError && <p className="form-error">{errorText(save.error)}</p>}
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!changed || save.isPending || name.trim().length < 2}>{save.isPending ? "Salvando…" : "Salvar"}</button>
+        </div>
+      </form>
+    </Dialog>
   );
 }
 

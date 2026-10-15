@@ -169,3 +169,21 @@ def test_ai_cannot_be_enabled_without_a_server_side_provider(client, admin):
     cfg["ai_enabled"] = True
     r = client.put("/api/settings/processing", json=cfg, headers=admin)
     assert r.status_code == 422 and r.json()["error"]["code"] == "ai_not_configured"
+
+
+def test_admin_edits_name_and_password_and_keeps_own_session(client, admin):
+    from tests.conftest import PASSWORD, login, make_user
+
+    email = make_user("analyst")
+    other = login(client, email)
+    uid = next(u["id"] for u in client.get("/api/users", headers=admin).json()["items"] if u["email"] == email)
+    r = client.patch(f"/api/users/{uid}", json={"name": "Beatriz Bessa", "password": "Nova-Senha-2026"}, headers=admin)
+    assert r.status_code == 200 and r.json()["name"] == "Beatriz Bessa"
+    assert client.get("/api/meta", headers=other).status_code == 401  # her sessions end with the new password
+    assert client.post("/api/auth/login", json={"email": email, "password": PASSWORD}).status_code == 401
+    assert client.post("/api/auth/login", json={"email": email, "password": "Nova-Senha-2026"}).status_code == 200
+    assert client.patch(f"/api/users/{uid}", json={"password": "fraca"}, headers=admin).status_code == 422
+
+    me = client.get("/api/meta", headers=admin).json()["user"]["id"]
+    assert client.patch(f"/api/users/{me}", json={"password": "Minha-Senha-Nova-1"}, headers=admin).status_code == 200
+    assert client.get("/api/meta", headers=admin).status_code == 200  # the session in use stays open

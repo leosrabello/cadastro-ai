@@ -89,3 +89,16 @@ supporting the ANPD incident assessment (Resolution 15/2024).
 - Backups nightly, off-site, restore-tested quarterly (deployment.md).
 - Desktop updates through the software distribution system, signed installers only.
 - Penetration test of the API before production.
+
+
+## Documents after the decision (2026-10-15)
+
+- **Rejected:** the documents, extracted text and personal data are deleted at the moment of
+  rejection (`retention.rejected_days = 0`, the default). This follows LGPD art. 6, III,
+  necessity: a rejected prospect's documents serve no further purpose. What remains is the
+  decision, the reason and the audit trail, with the name and CPF/CNPJ anonymized. A purged
+  registration cannot be reopened. Registrations under legal hold are never purged.
+- **Approved:** the documents are kept. KYC records of active clients must be retained for at
+  least five years after the end of the relationship (Lei 9.613/1998, art. 10; CVM Resolução 50,
+  for a securitizadora). LGPD art. 16, I allows retention to meet a legal obligation. Deleting
+  them requires another place that keeps the dossier for that period.

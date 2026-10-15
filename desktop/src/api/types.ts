@@ -25,6 +25,7 @@ export interface Meta {
   document_types: Record<string, { label: string; fields: string[] }>;
   profiles: Record<string, { label: string; tax_id_kind: "cpf" | "cnpj" }>;
   modalities: Record<Modality, string>;
+  retention?: { rejected_days: number | null };
   field_labels: Record<string, string>;
   permissions: { operate: boolean; approve: boolean; reject: boolean; override: boolean; audit: boolean; admin: boolean };
   limits: { max_upload_mb: number; accepted: string[] };

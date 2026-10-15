@@ -243,6 +243,7 @@ def meta(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
         "document_types": {k: {"label": v.get("label", k), "fields": v.get("fields", [])} for k, v in doc_types.items()},
         "profiles": {k: {"label": v.get("label", k), "tax_id_kind": v.get("tax_id_kind", "cpf")} for k, v in profiles.items()},
         "modalities": {k: v for k, v in Modality.LABELS.items()},
+        "retention": {"rejected_days": get_setting(db, "retention").get("rejected_days")},
         "field_labels": FIELD_LABELS,
         "statuses": list(RegStatus.ALL),
         "roles": list(Role.ALL),

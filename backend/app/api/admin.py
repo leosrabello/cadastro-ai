@@ -128,7 +128,7 @@ class Watcher(BaseModel):
 
 
 class Retention(BaseModel):
-    rejected_days: int | None = Field(None, ge=30, le=3650)
+    rejected_days: int | None = Field(None, ge=0, le=3650)  # 0 = on rejection
     abandoned_pending_days: int | None = Field(None, ge=30, le=3650)
     approved_note: str | None = None
 
@@ -308,6 +308,8 @@ def update_user(uid: uuid.UUID, body: UserPatch, p: Principal = Depends(ADMINS),
             raise ApiError(422, "weak_password", " ".join(problems))
         user.password_hash = hash_password(body.password)
         changes["password"] = "reset"
+    if body.name is not None and not body.name.strip():
+        raise ApiError(422, "name_required", "Informe o nome.")
     revoke = False
     if body.is_active is not None and body.is_active != user.is_active:
         if user.id == p.user.id:
@@ -317,8 +319,11 @@ def update_user(uid: uuid.UUID, body: UserPatch, p: Principal = Depends(ADMINS),
         changes["is_active"] = body.is_active
         revoke = not body.is_active
     if revoke or "role" in changes or "password" in changes:
+        # changing your own password keeps the session you are using; every other one ends
+        keep = p.session.id if user.id == p.user.id else None
         for s in db.execute(select(UserSession).where(UserSession.user_id == user.id, UserSession.revoked_at.is_(None))).scalars():
-            s.revoked_at = utcnow()
+            if s.id != keep:
+                s.revoked_at = utcnow()
         changes["sessions_revoked"] = True
     audit.record(db, "user.updated", actor=p.user, entity_type="user", entity_id=user.id, details=changes, ip=p.ip)
     db.commit()

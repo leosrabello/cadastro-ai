@@ -179,10 +179,13 @@ def test_retention_purges_rejected_registrations_but_keeps_audit(client, analyst
     from app.models import Document, Registration
     from app.retention import run
 
+    _set_rejected_days(client, admin, 180)
     p = syn.person(49)
     reg = new_registration(client, analyst, p.name, p.cpf)
     upload(client, analyst, reg["id"], "rg.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today()).png())
     client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reject", "reason": "Documentação insuficiente"}, headers=supervisor)
+    with session_scope() as db:
+        assert db.get(Registration, reg["id"]).anonymized_at is None  # kept until the retention period ends
     with session_scope() as db:
         r = db.get(Registration, reg["id"])
         r.decided_at = r.decided_at - timedelta(days=400)
@@ -194,6 +197,63 @@ def test_retention_purges_rejected_registrations_but_keeps_audit(client, analyst
         doc = db.query(Document).filter(Document.registration_id == r.id).one()
         assert doc.status == "purged" and doc.storage_key is None and doc.ocr_text is None and not doc.fields
     assert client.get("/api/audit/verify", headers=admin).json()["valid"]
+
+
+def _set_rejected_days(client, admin, days):
+    policy = client.get("/api/settings", headers=admin).json()["settings"]["retention"]
+    policy["rejected_days"] = days
+    assert client.put("/api/settings/retention", json=policy, headers=admin).status_code == 200
+
+
+def test_rejection_deletes_the_documents_at_once_by_default(client, analyst, supervisor, admin):
+    from app.models import Document, Registration
+    from app.storage import get_store
+
+    p = syn.person(51)
+    reg = new_registration(client, analyst, p.name, p.cpf)
+    upload(client, analyst, reg["id"], "rg.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today()).png())
+    with session_scope() as db:
+        key = db.query(Document).filter(Document.registration_id == reg["id"]).one().storage_key
+    assert get_store().get(key)
+    r = client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reject", "reason": "Fora da política de crédito"}, headers=supervisor)
+    assert r.status_code == 201, r.text
+    with session_scope() as db:
+        rr = db.get(Registration, reg["id"])
+        assert rr.status == "rejected" and rr.subject_name == "[expurgado]" and rr.tax_id is None
+        doc = db.query(Document).filter(Document.registration_id == rr.id).one()
+        assert doc.status == "purged" and doc.storage_key is None and doc.ocr_text is None
+    try:
+        get_store().get(key)
+        raise AssertionError("stored file still exists")
+    except Exception as exc:
+        assert not isinstance(exc, AssertionError)
+    r = client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reopen", "reason": "Reprovado por engano"}, headers=supervisor)
+    assert r.status_code == 409 and r.json()["error"]["code"] == "purged"
+    actions = [e["action"] for e in client.get(f"/api/audit?registration_id={reg['id']}", headers=admin).json()["items"]]
+    assert "registration.reject" in actions and "registration.purged" in actions
+    assert client.get("/api/audit/verify", headers=admin).json()["valid"]
+
+
+def test_approval_keeps_the_documents(client, analyst, supervisor):
+    from app.models import Document
+
+    p = syn.person(52)
+    reg = new_registration(client, analyst, p.name, p.cpf)
+    upload(client, analyst, reg["id"], "rg.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today()).png())
+    r = client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "approve", "override": True, "reason": "Aprovado em comitê com ressalvas documentadas"}, headers=supervisor)
+    assert r.status_code == 201, r.text
+    with session_scope() as db:
+        assert db.query(Document).filter(Document.registration_id == reg["id"]).one().storage_key
+
+
+def test_legal_hold_keeps_a_rejected_registrations_documents(client, analyst, supervisor):
+    from app.models import Registration
+
+    reg = new_registration(client, analyst)
+    client.post(f"/api/registrations/{reg['id']}/legal-hold", json={"hold": True, "reason": "Ofício judicial 456/2026"}, headers=supervisor)
+    client.post(f"/api/registrations/{reg['id']}/decisions", json={"action": "reject", "reason": "Documentação insuficiente"}, headers=supervisor)
+    with session_scope() as db:
+        assert db.get(Registration, reg["id"]).anonymized_at is None
 
 
 def test_legal_hold_blocks_purge(client, analyst, supervisor, admin):

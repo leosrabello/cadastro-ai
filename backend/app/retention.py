@@ -50,7 +50,7 @@ def run(db: Session) -> dict:
         (RegStatus.PENDING_DOCUMENTS, policy.get("abandoned_pending_days"), Registration.updated_at),
     ]
     for status, days, column in rules:
-        if not days:
+        if days is None:
             continue
         regs = db.execute(
             select(Registration).where(

@@ -263,7 +263,8 @@ WATCHER = {
 }
 
 RETENTION = {
-    "rejected_days": 180,
+    # 0: the documents of a rejected registration are deleted when it is rejected (LGPD, necessity)
+    "rejected_days": 0,
     "abandoned_pending_days": 365,
     "approved_note": "Aprovados: manter enquanto durar o relacionamento e por 5 anos após o encerramento (Lei 9.613/1998, art. 10; Circular Bacen 3.978/2020). O encerramento vem do sistema principal; não há expurgo automático de aprovados.",
 }

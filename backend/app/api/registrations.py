@@ -290,6 +290,8 @@ def decide(rid: uuid.UUID, body: DecisionIn, p: Principal = Depends(OPERATORS), 
             raise ApiError(422, "reason_required", "Explique o motivo da reabertura (mínimo 10 caracteres).")
         if reg.status not in (*RegStatus.FINAL, RegStatus.PENDING_DOCUMENTS):
             raise ApiError(409, "invalid_state", "Somente cadastros decididos podem ser reabertos.")
+        if reg.anonymized_at:
+            raise ApiError(409, "purged", "Os documentos e dados deste cadastro foram apagados após a reprovação. Abra um cadastro novo.")
         new_status = RegStatus.AWAITING_REVIEW
     elif reg.status in RegStatus.FINAL:
         raise ApiError(409, "registration_closed", "Cadastro já decidido.")
@@ -362,6 +364,9 @@ def decide(rid: uuid.UUID, body: DecisionIn, p: Principal = Depends(OPERATORS), 
     analyze_registration(db, reg.id)
     audit.record(db, f"registration.{body.action}", actor=p.user, entity_type="registration", entity_id=reg.id, registration_id=reg.id,
                  details={"from": old, "to": reg.status, "reason": reason, "requested_items": body.requested_items, "overrides": overrides}, ip=p.ip)
+    if body.action == "reject" and get_setting(db, "retention").get("rejected_days") == 0 and not reg.legal_hold:
+        # LGPD necessity: a rejected prospect's documents have no further use; the decision and the audit trail stay
+        purge_registration(db, reg, "reprovado: documentos apagados na decisão", actor=p.user)
     db.commit()
     return decision_out(decision)
 

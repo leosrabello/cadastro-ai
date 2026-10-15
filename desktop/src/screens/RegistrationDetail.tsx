@@ -479,6 +479,7 @@ function DecisionDialog({ r, action, onClose }: { r: R; action: Decision["action
   const qc = useQueryClient();
   const toast = useToast();
   const perm = usePerm();
+  const { meta } = useAuth();
   const copy = DECISION_COPY[action];
   const [reason, setReason] = useState("");
   const [blockers, setBlockers] = useState<string[] | null>(null);
@@ -535,6 +536,9 @@ function DecisionDialog({ r, action, onClose }: { r: R; action: Decision["action
           <textarea className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
         {min > 0 && <span className="meta num">{reason.trim().length} de no mínimo {min} caracteres</span>}
+        {action === "reject" && meta?.retention?.rejected_days === 0 && !r.legal_hold && (
+          <p className="warn-text">Ao reprovar, os documentos e os dados pessoais deste cadastro são apagados na hora (LGPD). Fica só a decisão, o motivo e a trilha de auditoria. Não será possível reabrir.</p>
+        )}
         {m.isError && !(m.error instanceof ApiError && m.error.code === "not_ready") && <p className="form-error">{errorText(m.error)}</p>}
         <div className="dialog-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
