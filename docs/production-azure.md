@@ -66,6 +66,19 @@ starts.
 this server. Copy the release's `CadastroAI-setup.exe` and `CadastroAI.msi` to
 `/opt/cadastro-ai/deploy/download/`.
 
+## Database viewer (read-only)
+
+pgweb runs on the server's loopback only (`127.0.0.1:8081`) and logs in as `leitura`, which can
+only SELECT (password hashes and sessions excluded). It is reached through SSH, so the same
+office-IP rule applies. From the administrator's Mac:
+
+```bash
+ssh -i ~/.ssh/cadastroai_azure -N -L 8082:127.0.0.1:8081 cadastro@20.206.200.132
+```
+
+then open http://localhost:8082 and leave the terminal open while using it (Ctrl+C closes it). If
+the viewer is not running: `docker compose -f docker-compose.prod.yml --profile ferramentas up -d dbweb`.
+
 ## Initial data
 
 The portfolio was copied from the development database: 105 clients, 15 commercials (Vitra

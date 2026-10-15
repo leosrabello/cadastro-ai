@@ -83,6 +83,22 @@ services:
     <<: *backend
     command: ["python", "-m", "app.ingestion.watcher"]
 
+  # Read-only database viewer, never published: it listens on the server's loopback only and is
+  # reached through an SSH tunnel (docs/production-azure.md). Started on demand:
+  #   docker compose -f docker-compose.prod.yml --profile ferramentas up -d dbweb
+  dbweb:
+    image: sosedoff/pgweb:0.16.2
+    profiles: ["ferramentas"]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGWEB_DATABASE_URL: postgres://leitura:${DB_READONLY_PASSWORD}@db:5432/cadastro?sslmode=disable
+    command: ["pgweb", "--bind=0.0.0.0", "--listen=8081", "--readonly"]
+    ports:
+      - "127.0.0.1:8081:8081"
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
