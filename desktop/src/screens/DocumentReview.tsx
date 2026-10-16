@@ -5,7 +5,7 @@ import { api, apiBlob } from "../api/client";
 import type { DocumentDetail, Evidence, ExtractedField } from "../api/types";
 import { useAuth, usePerm } from "../auth";
 import { FindingCard } from "../components/FindingCard";
-import { Confidence, ErrorBox, Mark, Skeleton, errorText, useToast } from "../components/ui";
+import { Confidence, Dialog, ErrorBox, Mark, Skeleton, errorText, useToast } from "../components/ui";
 import { SOURCE, VALIDITY, fmtBytes, fmtDateTime, fmtFieldValue, pct } from "../lib/format";
 import "./review.css";
 
@@ -23,6 +23,7 @@ export function DocumentReview() {
   const [page, setPage] = useState(Number(params.get("pagina") ?? 0));
   const [zoom, setZoom] = useState(1);
   const [hover, setHover] = useState<Region>(null);
+  const [deleting, setDeleting] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
   const [focus, setFocus] = useState<Region>(() => {
     const r = params.get("regiao");
@@ -125,6 +126,7 @@ export function DocumentReview() {
               a.download = d.original_filename;
               a.click();
             }}>Baixar original</button>
+            {perm.operate && <button className="btn btn-sm btn-ghost" onClick={() => setDeleting(true)}>Excluir</button>}
           </div>
         </div>
         <Viewer src={img.data} loading={img.isLoading} error={img.error} zoom={zoom} lit={lit} focus={regionOnPage(focus)}
@@ -132,6 +134,7 @@ export function DocumentReview() {
           purged={d.status === "purged"} />
       </section>
 
+      {deleting && <DeleteDocument d={d} onClose={() => setDeleting(false)} />}
       <aside className="inspector" aria-label="Análise do documento">
         <div className="inspector-nav">
           {prev ? <Link to={`/documentos/${prev.id}`} className="meta">‹ Anterior</Link> : <span />}
@@ -340,5 +343,45 @@ function FieldRow({ f, docId, editable, onHover, onFocus }: { f: ExtractedField;
         </>
       )}
     </li>
+  );
+}
+
+function DeleteDocument({ d, onClose }: { d: DocumentDetail; onClose: () => void }) {
+  const nav = useNavigate();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [reason, setReason] = useState("");
+  const busy = d.status === "queued" || d.status === "processing";
+  const del = useMutation({
+    mutationFn: () => api(`/api/documents/${d.id}/delete`, { method: "POST", json: { reason } }),
+    onSuccess: () => {
+      for (const k of ["registration", "registrations", "dashboard", "inbox"]) qc.invalidateQueries({ queryKey: [k] });
+      toast(`${d.original_filename} excluído.`);
+      nav(d.registration ? `/cadastros/${d.registration.id}` : "/entrada");
+    },
+  });
+  return (
+    <Dialog title="Excluir este documento?" onClose={onClose}>
+      {busy ? (
+        <>
+          <p className="muted">O documento ainda está sendo analisado. Espere terminar para excluir.</p>
+          <div className="dialog-actions"><button className="btn btn-ghost" onClick={onClose}>Fechar</button></div>
+        </>
+      ) : (
+        <form className="form-grid" onSubmit={(e) => { e.preventDefault(); del.mutate(); }}>
+          <p className="muted">
+            O arquivo <span className="strong">{d.original_filename}</span> e tudo o que foi lido dele (campos, pontos e observações) são apagados de vez.
+            O checklist do cadastro é refeito sem ele. Use para arquivos enviados por engano, na versão errada ou repetidos.
+          </p>
+          <label className="label"><span>Motivo (fica na auditoria)</span>
+            <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: enviado no cadastro errado" /></label>
+          {del.isError && <p className="form-error">{errorText(del.error)}</p>}
+          <div className="dialog-actions">
+            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-danger" disabled={reason.trim().length < 5 || del.isPending}>{del.isPending ? "Excluindo…" : "Excluir de vez"}</button>
+          </div>
+        </form>
+      )}
+    </Dialog>
   );
 }

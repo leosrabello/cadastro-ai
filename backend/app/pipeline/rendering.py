@@ -7,6 +7,12 @@ from PIL import ExifTags, Image, ImageOps
 from app.pipeline.ocr.base import PageText, Word, lines_from_words
 
 
+def clean_text(value) -> str:
+    """Text safe for PostgreSQL: scanner firmware writes stray bytes into PDF metadata that Python
+    decodes as lone surrogates, and NUL is not allowed in text or JSON."""
+    return str(value).encode("utf-8", "replace").decode("utf-8").replace("\x00", "")
+
+
 @dataclass
 class RenderedPage:
     index: int
@@ -42,7 +48,7 @@ def render_page_png(data: bytes, mime: str, page: int, dpi: int = 110) -> bytes:
 def _render_pdf(data: bytes, dpi: int, max_pages: int) -> Rendered:
     pages: list[RenderedPage] = []
     with fitz.open(stream=data, filetype="pdf") as doc:
-        meta = {k: v for k, v in (doc.metadata or {}).items() if v}
+        meta = {k: clean_text(v) for k, v in (doc.metadata or {}).items() if v}
         meta["page_count"] = doc.page_count
         meta["eof_markers"] = data.count(b"%%EOF")
         meta["has_text_layer"] = False
@@ -54,7 +60,7 @@ def _render_pdf(data: bytes, dpi: int, max_pages: int) -> Rendered:
             words = []
             for x0, y0, x1, y1, text, block, line, _wn in page.get_text("words"):
                 if text.strip():
-                    words.append(Word(text=text, conf=0.99, bbox=(x0 / pw, y0 / ph, x1 / pw, y1 / ph), line=block * 1000 + line))
+                    words.append(Word(text=clean_text(text), conf=0.99, bbox=(x0 / pw, y0 / ph, x1 / pw, y1 / ph), line=block * 1000 + line))
             text_layer = None
             if len(words) >= 5:
                 meta["has_text_layer"] = True

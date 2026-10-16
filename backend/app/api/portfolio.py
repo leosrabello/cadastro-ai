@@ -690,7 +690,7 @@ def update_signature(tid: uuid.UUID, body: TrackingPatch, p: Principal = Depends
 
 
 @router.delete("/signatures/{tid}", status_code=204)
-def delete_signature(tid: uuid.UUID, p: Principal = Depends(SUPERVISORS), db: Session = Depends(get_db)):
+def delete_signature(tid: uuid.UUID, p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
     t = get_tracking(db, tid)
     snapshot = tracking_out(t, date.today(), Catalog.load(db))
     db.delete(t)

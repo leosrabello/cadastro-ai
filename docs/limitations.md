@@ -12,6 +12,12 @@
 
 ## Functional limits
 
+- **Word and Excel** are converted to PDF with LibreOffice at intake. Layout follows LibreOffice's
+  rendering; very wide spreadsheets span several pages. Files with macros or a password are refused.
+- **Administrators and signing** in the articles of association are read by keyword rules and, when
+  AI is on, by the AI from the clause. Unusual drafting (powers by amount, attorneys in fact) needs a
+  look at the clause, which is quoted with the value.
+
 - **Signing portal.** No integration: Assinaturas records the dates the analyst checks on the
   portal; nothing is queried or automated there.
 - **Status catalog and SLA** are settings (`client_statuses`, `portfolio`) editable through the

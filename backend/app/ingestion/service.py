@@ -76,7 +76,9 @@ def ingest(
             raise DuplicateDocument(existing)
 
     key = get_store().put(data)
+    rendition_key = get_store().put(screened.rendition) if screened.rendition else None
     doc = Document(
+        rendition_key=rendition_key,
         id=uuid.uuid4(),
         registration_id=registration.id if registration else None,
         original_filename=screened.safe_name,

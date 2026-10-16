@@ -319,8 +319,7 @@ def test_signature_check_states_kpis_and_validation(client, analyst, supervisor)
     assert r.json()["state"] == "assinado" and len(r.json()["followups"]) == 1
     lst = client.get("/api/signatures?state=assinado", headers=analyst).json()
     assert lst["kpis"]["avg_signature_days"] == 6.5 and lst["kpis"]["signed"] == 2 and lst["kpis"]["followups"] == 1
-    assert client.delete(f"/api/signatures/{sid}", headers=analyst).status_code == 403
-    assert client.delete(f"/api/signatures/{sid}", headers=supervisor).status_code == 204
+    assert client.delete(f"/api/signatures/{sid}", headers=analyst).status_code == 204  # analysts remove contracts too
     assert client.get("/api/signatures", headers=analyst).json()["items"] == []
 
 

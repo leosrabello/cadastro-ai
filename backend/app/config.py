@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     storage_encryption_key: str = Field(..., alias="STORAGE_ENCRYPTION_KEY")
 
     max_upload_mb: int = Field(25, alias="MAX_UPLOAD_MB")
-    max_pages: int = Field(15, alias="MAX_PAGES")
+    max_pages: int = Field(80, alias="MAX_PAGES")  # full contracts with every amendment run to 30-60 pages
     render_dpi: int = Field(300, alias="RENDER_DPI")  # small print (CNH Digital, scanned IDs) needs 300
 
     ocr_provider: str = Field("tesseract", alias="OCR_PROVIDER")

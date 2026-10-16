@@ -22,17 +22,28 @@ Rules for observations:
 - summary: one or two sentences in Brazilian Portuguese describing what the document is and what, if anything, needs attention."""
 
 
+# What a field means when it is an interpretation of a clause rather than a printed value.
+FIELD_HINTS = {
+    "administradores": "names of the company's administrators as set by the administration clause of the text in force (consolidated or latest amendment), separated by '; '",
+    "responsaveis_assinatura": "who represents the company and signs for it (uso do nome empresarial / representação ativa e passiva), names separated by '; ', adding any limit in a few words (e.g. 'acima de R$ 500 mil, dois administradores')",
+    "forma_assinatura": "'Isolada' when each administrator signs alone, 'Conjunta' when they must sign together, or a short description when it depends on the act or the amount",
+    "consolidado": "'Sim' when this document consolidates the articles of association (contrato social consolidado, consolidação do contrato), 'Não' when it is an amendment that does not consolidate them",
+}
+
+
 def user_text(req: AiRequest) -> str:
     types = "\n".join(f"- {k}: {label}" for k, label in req.doc_types.items())
     pages = "\n".join(
         f'<page index="{i}">\n{html.escape(text)}\n</page>' for i, text in enumerate(req.pages_text)
     )
     rule_fields = json.dumps(req.rule_fields, ensure_ascii=False, sort_keys=True)
+    hints = "".join(f"  - {f}: {FIELD_HINTS[f]}\n" for f in req.wanted_fields if f in FIELD_HINTS)
     return (
         f"Reference date: {req.reference_date}\n"
         f"Allowed document types:\n{types}\n"
         f"Rule-based classification: {req.doc_type_hint or 'none'}\n"
         f"Fields to read: {', '.join(req.wanted_fields)}\n"
+        f"{hints}"
         f"Rule-based reading (may contain OCR errors): {rule_fields}\n"
         f"Page images attached: {len(req.images)}\n\n"
         f"<document_text>\n{pages}\n</document_text>\n\n"

@@ -31,10 +31,10 @@ from app.models import (
     utcnow,
 )
 from app.pipeline import ai as ai_mod
-from app.pipeline import classify, completeness, consistency, extract, forensics, injection, ocr, priority, rendering, validity
+from app.pipeline import classify, completeness, consistency, extract, forensics, governance, injection, ocr, priority, rendering, validity
 from app.pipeline.ai.base import AiRequest
 from app.pipeline.findings import FindingDraft, evidence, sync
-from app.pipeline.normalize import digits, format_cnpj, format_cpf, format_money, parse_date, parse_money, valid_cnpj, valid_cpf
+from app.pipeline.normalize import digits, fold, format_cnpj, format_cpf, format_money, parse_date, parse_money, valid_cnpj, valid_cpf
 from app.settings_store import get_setting
 from app.storage import StorageCorrupted, StorageUnavailable, get_store
 
@@ -158,9 +158,15 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
         raise PermanentError(f"arquivo armazenado ilegível: {exc}") from exc
     if forensics_sha(data) != doc.sha256:
         raise PermanentError("o arquivo armazenado não confere com o hash registrado na entrada")
+    view_data, view_mime = data, doc.mime_type
+    if doc.rendition_key:  # Word/Excel: read the PDF made from it at intake
+        try:
+            view_data, view_mime = get_store().get(doc.rendition_key), "application/pdf"
+        except StorageUnavailable as exc:
+            raise TransientError(f"armazenamento indisponível: {exc}") from exc
 
     try:
-        rendered = rendering.render(data, doc.mime_type, dpi=s.render_dpi, max_pages=s.max_pages)
+        rendered = rendering.render(view_data, view_mime, dpi=s.render_dpi, max_pages=s.max_pages)
     except Exception as exc:
         raise PermanentError(f"não foi possível abrir o documento: {exc}") from exc
     metrics["pages"] = len(rendered.pages)
@@ -170,7 +176,14 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
     t0 = time.monotonic()
     pages = []
     integrity: list[FindingDraft] = []
+    ocr_skipped = 0
     for page in rendered.pages:
+        if page.text_layer is not None and not page.image_boxes:
+            # born-digital page with nothing but text: OCR would only repeat it, and long contracts
+            # would take minutes; scans and pages with pictures are still read and compared
+            pages.append(page.text_layer)
+            ocr_skipped += 1
+            continue
         try:
             ocr_page = provider.recognize(page.image, page.index)
         except ocr.OcrUnavailable as exc:
@@ -184,6 +197,7 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
         else:
             pages.append(ocr_page)
     metrics["ocr_ms"] = int((time.monotonic() - t0) * 1000)
+    metrics["ocr_skipped_text_pages"] = ocr_skipped
     ocr_conf = [p.mean_conf for p in pages if p.source != "pdf_text"]
     metrics["ocr_mean_conf"] = round(sum(ocr_conf) / len(ocr_conf), 3) if ocr_conf else None
 
@@ -389,6 +403,9 @@ def _normalize_ai_value(name: str, value: str) -> tuple[str | None, bool | None]
     if name in MONEY_FIELDS:
         amount = parse_money(v)
         return (format_money(amount), True) if amount is not None else (None, None)
+    if name == "consolidado":
+        f = fold(v)
+        return ("Sim", True) if f.startswith("SIM") else ("Não", True) if f.startswith("NAO") else (v, True)
     return v, True
 
 
@@ -429,6 +446,13 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
         if norm is None:
             continue
         current = fields.get(af.name)
+        if af.name in governance.GOVERNANCE_FIELDS:
+            # reading a clause is interpretation: the AI's reading replaces the keyword rules' guess
+            fields[af.name] = extract.FieldValue(
+                name=af.name, value=norm, raw=(af.evidence_text or af.value)[:400], confidence=0.7, page=af.page, bbox=None, valid=True,
+                note="Interpretado da cláusula pela IA; confirme no original.", source="ai",
+            )
+            continue
         if current is None or not current.value:
             fields[af.name] = extract.FieldValue(
                 name=af.name, value=norm, raw=af.value, confidence=0.5, page=af.page, bbox=None, valid=ok,

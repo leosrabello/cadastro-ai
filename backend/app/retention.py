@@ -18,12 +18,14 @@ def purge_registration(db: Session, reg: Registration, reason: str, actor=None) 
     store = get_store()
     purged = 0
     for doc in db.execute(select(Document).where(Document.registration_id == reg.id, Document.status != DocStatus.PURGED)).scalars():
-        if doc.storage_key:
-            try:
-                store.delete(doc.storage_key)
-            except StorageUnavailable:
-                continue
+        try:
+            for key in (doc.storage_key, doc.rendition_key):
+                if key:
+                    store.delete(key)
+        except StorageUnavailable:
+            continue
         doc.storage_key = None
+        doc.rendition_key = None
         doc.ocr_text = None
         doc.ocr_pages = None
         doc.phash = None
@@ -53,8 +55,9 @@ def delete_registration(db: Session, reg: Registration, reason: str, actor=None,
     docs = db.execute(select(Document).where(Document.registration_id == reg.id)).scalars().all()
     ids = [d.id for d in docs]
     for d in docs:
-        if d.storage_key:
-            store.delete(d.storage_key)  # StorageUnavailable aborts the whole deletion
+        for key in (d.storage_key, d.rendition_key):
+            if key:
+                store.delete(key)  # StorageUnavailable aborts the whole deletion
     if ids:
         db.execute(update(Document).where(Document.duplicate_of_id.in_(ids)).values(duplicate_of_id=None))
         db.execute(delete(ExtractedField).where(ExtractedField.document_id.in_(ids)))

@@ -55,6 +55,7 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
                           else ("CPF", format_cpf(reg.tax_id)) if reg.tax_id and len(reg.tax_id) == 11 else (None, None))
     company = {"razao_social": reg.subject_name, "cnpj": tax_fmt, "tax_id_label": tax_label,
                "endereco": None, "situacao_cadastral": None, "data_registro": None}
+    contract = _latest(docs, "contrato_social")
     for t in ("cartao_cnpj", "certidao_simplificada", "contrato_social", "estatuto_social"):
         d = _latest(docs, t)
         if d:
@@ -171,6 +172,7 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
                          "status": reg.status, "created_at": iso(reg.created_at), "ready_for_decision": reg.ready_for_decision},
         "company": company,
         "partners": list(people.values()),
+        "governance": {k: _f(contract, k) for k in ("administradores", "responsaveis_assinatura", "forma_assinatura", "consolidado")} if contract else None,
         "revenue": {"series": revenue, "summary": rev_summary},
         "debt": debt,
         "customers": customers,

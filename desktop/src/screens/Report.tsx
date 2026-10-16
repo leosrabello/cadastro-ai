@@ -17,6 +17,7 @@ interface Report {
   reference_date: string;
   registration: { id: string; code: string; kind_label: string; modality_label: string; status: string; ready_for_decision: boolean };
   company: { razao_social: string; cnpj: string | null; tax_id_label: string | null; endereco: string | null; situacao_cadastral: string | null };
+  governance: { administradores: string | null; responsaveis_assinatura: string | null; forma_assinatura: string | null; consolidado: string | null } | null;
   partners: { nome: string; cpf: string | null; fora_do_quadro?: boolean; irpf: { exercicio: string | null; bens: number | null; dividas: number | null; dividendos: number | null }[] }[];
   revenue: {
     series: Record<string, Record<string, number>>;
@@ -241,6 +242,14 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
       {/* names in columns */}
       <section className="rs-names">
         <h2 className="rs-h">{isCompany ? "Pessoas e relações" : "Pessoa"}</h2>
+        {isCompany && rep.governance && (rep.governance.administradores || rep.governance.forma_assinatura || rep.governance.consolidado) && (
+          <dl className="rs-governance">
+            <div><dt>Administradores</dt><dd>{rep.governance.administradores ?? "Não identificados no contrato"}</dd></div>
+            <div><dt>Assinam pela empresa</dt><dd>{rep.governance.responsaveis_assinatura ?? rep.governance.administradores ?? "—"}</dd></div>
+            <div><dt>Forma de assinatura</dt><dd>{rep.governance.forma_assinatura ?? "—"}</dd></div>
+            <div><dt>Contrato consolidado</dt><dd>{rep.governance.consolidado ?? "—"}</dd></div>
+          </dl>
+        )}
         <div className="rs-cols">
           <div>
             <p className="rs-soft">{isCompany ? "Sócios" : "Titular"}</p>

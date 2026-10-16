@@ -255,7 +255,7 @@ def meta(p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
             "audit": role in (Role.SUPERVISOR, Role.ADMIN, Role.AUDITOR),
             "admin": role == Role.ADMIN,
         },
-        "limits": {"max_upload_mb": get_settings().max_upload_mb, "accepted": [".pdf", ".jpg", ".jpeg", ".png"]},
+        "limits": {"max_upload_mb": get_settings().max_upload_mb, "accepted": [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".doc", ".xlsx", ".xls"]},
     }
 
 

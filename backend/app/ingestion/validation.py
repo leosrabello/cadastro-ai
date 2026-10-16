@@ -12,6 +12,7 @@ import fitz  # PyMuPDF
 from PIL import Image, UnidentifiedImageError
 
 from app.config import get_settings
+from app.ingestion.office import OFFICE_TYPES, OfficeRejected, sniff_office
 
 Image.MAX_IMAGE_PIXELS = 60_000_000  # decompression-bomb guard (~60 MP)
 
@@ -19,7 +20,9 @@ ALLOWED = {
     "application/pdf": {".pdf"},
     "image/jpeg": {".jpg", ".jpeg"},
     "image/png": {".png"},
+    **OFFICE_TYPES,
 }
+ACCEPTED_LABEL = "PDF, JPEG, PNG, Word (.docx, .doc) ou Excel (.xlsx, .xls)"
 
 _ACTIVE_PDF_KEYS = ("/JavaScript", "/JS", "/Launch", "/EmbeddedFile", "/RichMedia", "/XFA")
 
@@ -37,9 +40,16 @@ class ScreenedFile:
     extension: str
     page_count: int
     safe_name: str
+    rendition: bytes | None = None  # PDF made from a Word/Excel file; the original is kept as received
 
 
 def sniff(data: bytes) -> str | None:
+    try:
+        office = sniff_office(data)
+    except OfficeRejected as exc:
+        raise RejectedFile(exc.code, exc.message)
+    if office:
+        return office
     if data.startswith(b"%PDF-"):
         return "application/pdf"
     if data.startswith(b"\xff\xd8\xff"):
@@ -66,18 +76,27 @@ def screen(data: bytes, filename: str) -> ScreenedFile:
     ext = ("." + display.rsplit(".", 1)[-1].lower()) if "." in display else ""
     mime = sniff(data)
     if mime is None:
-        raise RejectedFile("unsupported_type", "Formato não aceito. Envie PDF, JPEG ou PNG.")
+        raise RejectedFile("unsupported_type", f"Formato não aceito. Envie {ACCEPTED_LABEL}.")
     if ext not in ALLOWED[mime]:
         raise RejectedFile(
             "type_mismatch",
             f"A extensão '{ext or 'sem extensão'}' não corresponde ao conteúdo do arquivo ({mime}).",
         )
 
-    if mime == "application/pdf":
+    rendition = None
+    if mime in OFFICE_TYPES:
+        from app.ingestion.office import to_pdf
+
+        try:
+            rendition = to_pdf(data, ext)
+        except OfficeRejected as exc:
+            raise RejectedFile(exc.code, exc.message)
+        pages = _screen_pdf(rendition, settings.max_pages)
+    elif mime == "application/pdf":
         pages = _screen_pdf(data, settings.max_pages)
     else:
         pages = _screen_image(data)
-    return ScreenedFile(mime_type=mime, extension=ext, page_count=pages, safe_name=display)
+    return ScreenedFile(mime_type=mime, extension=ext, page_count=pages, safe_name=display, rendition=rendition)
 
 
 def _screen_pdf(data: bytes, max_pages: int) -> int:
@@ -95,7 +114,7 @@ def _screen_pdf(data: bytes, max_pages: int) -> int:
         if doc.page_count == 0:
             raise RejectedFile("corrupted", "O PDF não tem páginas.")
         if doc.page_count > max_pages:
-            raise RejectedFile("too_many_pages", f"O PDF tem {doc.page_count} páginas; o limite é {max_pages}.")
+            raise RejectedFile("too_many_pages", f"O documento tem {doc.page_count} páginas; o limite é {max_pages}. Divida o arquivo em partes.")
         for xref in range(1, doc.xref_length()):
             try:
                 obj = doc.xref_object(xref, compressed=False)

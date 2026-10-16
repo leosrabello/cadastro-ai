@@ -27,6 +27,7 @@ from app.pipeline.normalize import (
     valid_cpf,
 )
 from app.pipeline import financial as fin
+from app.pipeline import governance
 from app.pipeline.ocr.base import Line, PageText
 
 
@@ -399,9 +400,18 @@ FINANCIAL = {
 
 def extract(doc_type: str | None, wanted: list[str], pages: list[PageText]) -> dict[str, FieldValue]:
     out: dict[str, FieldValue] = {}
+    gov = None
     for name in wanted:
         fv: FieldValue | None = None
-        if name == "cpf":
+        if name in governance.GOVERNANCE_FIELDS:
+            if gov is None:
+                partners = (_socios(pages) or FieldValue("socios", "", None, 0, None, None)).value.split("; ")
+                gov = governance.read(pages, [p for p in partners if p])
+            g = gov.get(name)
+            if g:
+                fv = FieldValue(name, g["value"], g["evidence"], 0.6, g["page"], None, True,
+                                note="Lido da cláusula do contrato pelas regras; confirme no original.")
+        elif name == "cpf":
             fv = _id_field("cpf", pages, CPF_RE, valid_cpf, format_cpf)
         elif name == "cnpj":
             fv = _id_field("cnpj", pages, CNPJ_RE, valid_cnpj, format_cnpj)

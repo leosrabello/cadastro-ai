@@ -1,6 +1,10 @@
 from app.models import Decision, Document, ExtractedField, Finding, Registration, User
 
 FIELD_LABELS = {
+    "administradores": "Administradores",
+    "responsaveis_assinatura": "Quem assina pela empresa",
+    "forma_assinatura": "Forma de assinatura",
+    "consolidado": "Contrato consolidado",
     "nome": "Nome",
     "cpf": "CPF",
     "cnpj": "CNPJ",

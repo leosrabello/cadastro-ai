@@ -77,6 +77,16 @@ def _read_original(doc: Document) -> bytes:
         raise ApiError(500, "storage_corrupted", "O arquivo armazenado está ilegível. Avise o administrador.")
 
 
+def _read_for_viewing(doc: Document) -> tuple[bytes, str]:
+    """The bytes the pipeline and the page viewer use: the PDF made from a Word/Excel original, or the original."""
+    if doc.rendition_key and doc.status != DocStatus.PURGED:
+        try:
+            return get_store().get(doc.rendition_key), "application/pdf"
+        except StorageUnavailable:
+            raise ApiError(503, "storage_unavailable", "O repositório de documentos está indisponível. Tente em instantes.")
+    return _read_original(doc), doc.mime_type
+
+
 @router.post("/registrations/{rid}/documents", status_code=201)
 async def upload(rid: uuid.UUID, files: list[UploadFile] = File(...), p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
     reg = get_registration(db, rid)
@@ -175,12 +185,50 @@ def document_page(did: uuid.UUID, page: int, p: Principal = Depends(ANY_ROLE), d
     doc = get_document(db, did)
     if page < 0 or page >= (doc.page_count or 1):
         raise ApiError(404, "not_found", "Página inexistente.")
-    data = _read_original(doc)
-    png = render_page_png(data, doc.mime_type, page, dpi=200)  # sharp enough to read small print at 300% zoom
+    data, mime = _read_for_viewing(doc)
+    png = render_page_png(data, mime, page, dpi=200)  # sharp enough to read small print at 300% zoom
     if page == 0:
         audit.record(db, "document.viewed", actor=p.user, entity_type="document", entity_id=doc.id, registration_id=doc.registration_id, ip=p.ip)
         db.commit()
     return Response(content=png, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
+
+
+class DocumentDeleteIn(BaseModel):
+    reason: str = Field(min_length=5, max_length=1000)
+
+
+@router.post("/documents/{did}/delete")
+def delete_document(did: uuid.UUID, body: DocumentDeleteIn, p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
+    """A file sent by mistake (wrong person, wrong version, duplicate). The stored file and everything read
+    from it go; the audit keeps the type, the hash and the reason, not the file name (it often carries a CPF)."""
+    from sqlalchemy import delete as sql_delete, update
+
+    doc = get_document(db, did)
+    reg = db.get(Registration, doc.registration_id) if doc.registration_id else None
+    if reg is not None and reg.legal_hold:
+        raise ApiError(409, "legal_hold", "Cadastro sob retenção legal; os documentos não podem ser excluídos.")
+    if doc.status in (DocStatus.QUEUED, DocStatus.PROCESSING):
+        raise ApiError(409, "processing", "O documento ainda está sendo analisado. Aguarde terminar para excluir.")
+    store = get_store()
+    try:
+        for key in (doc.storage_key, doc.rendition_key):
+            if key:
+                store.delete(key)
+    except StorageUnavailable:
+        raise ApiError(503, "storage_unavailable", "O repositório de documentos não respondeu; nada foi excluído. Tente de novo.")
+    db.execute(update(Document).where(Document.duplicate_of_id == doc.id).values(duplicate_of_id=None))
+    db.execute(update(IngestRecord).where(IngestRecord.document_id == doc.id).values(document_id=None))
+    db.execute(sql_delete(ExtractedField).where(ExtractedField.document_id == doc.id))
+    db.execute(sql_delete(Finding).where(Finding.document_id == doc.id))
+    db.execute(sql_delete(ProcessingJob).where(ProcessingJob.document_id == doc.id))
+    audit.record(db, "document.deleted", actor=p.user, entity_type="document", entity_id=doc.id, registration_id=doc.registration_id,
+                 details={"doc_type": doc.doc_type, "sha256": doc.sha256, "reason": body.reason.strip()}, ip=p.ip)
+    db.delete(doc)
+    db.flush()
+    if reg is not None:
+        analyze_registration(db, reg.id)
+    db.commit()
+    return {"deleted": True}
 
 
 @router.post("/documents/{did}/reprocess")

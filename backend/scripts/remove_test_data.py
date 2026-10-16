@@ -75,9 +75,11 @@ def remove_documents(db, docs: list[Document]) -> int:
     if not ids:
         return 0
     for d in docs:
-        if d.storage_key:
+        for key in (d.storage_key, d.rendition_key):
+            if not key:
+                continue
             try:
-                store.delete(d.storage_key)
+                store.delete(key)
             except StorageUnavailable as exc:
                 raise SystemExit(f"armazenamento indisponível, nada foi removido: {exc}")
     db.execute(update(Document).where(Document.duplicate_of_id.in_(ids)).values(duplicate_of_id=None))

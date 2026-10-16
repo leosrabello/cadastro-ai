@@ -2,8 +2,10 @@ FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
+# LibreOffice (no GUI) converts Word and Excel uploads to PDF; Liberation fonts keep their layout
 RUN apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-por fonts-dejavu-core \
+    libreoffice-writer-nogui libreoffice-calc-nogui fonts-liberation2 \
  && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd --system app && useradd --system --gid app --home /srv app

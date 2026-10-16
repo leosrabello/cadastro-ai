@@ -13,7 +13,7 @@ interface Item {
   message?: string;
 }
 
-const OK_EXT = /\.(pdf|jpe?g|png)$/i;
+const OK_EXT = /\.(pdf|jpe?g|png|docx?|xlsx?)$/i;
 
 export function UploadZone({ registrationId, disabled }: { registrationId: string; disabled?: boolean }) {
   const qc = useQueryClient();
@@ -46,7 +46,7 @@ export function UploadZone({ registrationId, disabled }: { registrationId: strin
   async function add(files: PickedFile[]) {
     const fresh: Item[] = files.map((f) => {
       const key = `${f.name}-${f.size}-${Math.random()}`;
-      if (!OK_EXT.test(f.name)) return { key, file: f, state: "error", progress: 0, message: "Formato não aceito. Envie PDF, JPEG ou PNG." };
+      if (!OK_EXT.test(f.name)) return { key, file: f, state: "error", progress: 0, message: "Formato não aceito. Envie PDF, JPEG, PNG, Word ou Excel." };
       if (f.size > maxBytes) return { key, file: f, state: "error", progress: 0, message: `Passa do limite de ${meta?.limits.max_upload_mb ?? 25} MB.` };
       return { key, file: f, state: "waiting", progress: 0 };
     });
@@ -87,7 +87,7 @@ export function UploadZone({ registrationId, disabled }: { registrationId: strin
             <button className="btn btn-sm" onClick={async () => add(await pickFiles())}>
               Escolher arquivos
             </button>
-            <span className="meta">PDF, JPEG ou PNG, até {meta?.limits.max_upload_mb ?? 25} MB cada</span>
+            <span className="meta">PDF, imagens (JPEG, PNG), Word ou Excel, até {meta?.limits.max_upload_mb ?? 25} MB cada</span>
           </>
         )}
       </div>

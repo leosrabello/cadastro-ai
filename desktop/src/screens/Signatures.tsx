@@ -113,7 +113,7 @@ export function Signatures() {
             <thead>
               <tr><th>Empresa</th><th>Contrato</th><th>Nº do processo</th><th>Emissão</th><th>Assinatura</th><th>Situação</th><th className="num">Dias</th><th>Cobranças</th></tr>
             </thead>
-            {q.data.items.map((t) => <Company key={t.id} t={t} sla={q.data!.sla_days} readOnly={!perm.operate} onFollowups={() => setFollowups(t)} canDelete={perm.approve || perm.admin} />)}
+            {q.data.items.map((t) => <Company key={t.id} t={t} sla={q.data!.sla_days} readOnly={!perm.operate} onFollowups={() => setFollowups(t)} canDelete={perm.operate} />)}
           </table>
         </>
       )}

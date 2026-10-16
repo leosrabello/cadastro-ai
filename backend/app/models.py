@@ -256,7 +256,8 @@ class Document(Base):
     registration_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("registrations.id"), index=True)
     original_filename: Mapped[str] = mapped_column(String(255))
     storage_key: Mapped[str | None] = mapped_column(String(128))
-    mime_type: Mapped[str] = mapped_column(String(64))
+    rendition_key: Mapped[str | None] = mapped_column(String(128))  # PDF made from a Word/Excel original
+    mime_type: Mapped[str] = mapped_column(String(128))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     phash: Mapped[str | None] = mapped_column(String(64), index=True)

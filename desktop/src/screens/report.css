@@ -116,3 +116,6 @@
 .rs-opinion { font-size: 18px; line-height: 1.6; max-width: 62ch; }
 .rs-decision { margin-top: 28px; color: #d4d4d4; max-width: 62ch; }
 .rs-foot { margin-top: 72px; font-size: 15px; color: #a3a3a3; max-width: 110ch; }
+.rs-governance { grid-column: 2; display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; margin: 0; }
+.rs-governance dt { font-size: 15px; color: var(--soft); }
+.rs-governance dd { margin: 4px 0 0; font-size: 18px; font-weight: 600; line-height: 1.3; }

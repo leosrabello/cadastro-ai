@@ -63,7 +63,7 @@ DOCUMENT_TYPES = {
     "contrato_social": {
         "label": "Contrato social / última alteração consolidada",
         "keywords": ["CONTRATO SOCIAL", "ALTERACAO CONTRATUAL", "CONSOLIDACAO", "CLAUSULA", "SOCIOS", "QUOTAS"],
-        "fields": ["razao_social", "cnpj", "socios", "data_registro"],
+        "fields": ["razao_social", "cnpj", "socios", "administradores", "responsaveis_assinatura", "forma_assinatura", "consolidado", "data_registro"],
         "validity": {"has_expiry": False, "note": "Não expira. Conferir se é a última alteração consolidada."},
     },
     "certidao_simplificada": {

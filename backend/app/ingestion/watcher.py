@@ -72,6 +72,8 @@ def looks_complete(data: bytes) -> bool:
         return data.rstrip(b"\x00").endswith(b"\xff\xd9")
     if data.startswith(b"\x89PNG"):
         return b"IEND" in data[-16:]
+    if data.startswith(b"PK\x03\x04"):  # .docx / .xlsx: the zip directory is written last
+        return b"PK\x05\x06" in data[-65_600:]
     return True  # unknown types are complete as far as we can tell; screening rejects them
 
 

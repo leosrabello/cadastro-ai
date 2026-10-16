@@ -6,8 +6,12 @@ export interface PickedFile {
   read: () => Promise<Blob>;
 }
 
-const ACCEPT = ["pdf", "jpg", "jpeg", "png"];
-const MIME: Record<string, string> = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+const ACCEPT = ["pdf", "jpg", "jpeg", "png", "docx", "doc", "xlsx", "xls"];
+const MIME: Record<string, string> = {
+  pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc: "application/msword",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel",
+};
 
 export const isTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
