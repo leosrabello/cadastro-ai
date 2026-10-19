@@ -263,7 +263,7 @@ def test_legal_hold_blocks_purge(client, analyst, supervisor, admin):
     assert r.status_code == 409 and r.json()["error"]["code"] == "legal_hold"
 
 
-def test_admin_deletes_a_registration_for_good_but_not_an_approved_one(client, analyst, supervisor, admin):
+def test_analyst_deletes_a_registration_for_good_but_not_an_approved_one(client, analyst, supervisor, admin, auditor):
     from app.models import Document, Registration
     from app.storage import get_store
 
@@ -272,9 +272,9 @@ def test_admin_deletes_a_registration_for_good_but_not_an_approved_one(client, a
     upload(client, analyst, reg["id"], "rg.png", syn.rg(p.name, p.cpf, p.rg, p.birth, today()).png())
     with session_scope() as db:
         key = db.query(Document).filter(Document.registration_id == reg["id"]).one().storage_key
-    assert client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "Cadastro duplicado por engano"}, headers=supervisor).status_code == 403
-    assert client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "curto"}, headers=admin).status_code == 422
-    r = client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "Cadastro duplicado por engano"}, headers=admin)
+    assert client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "Cadastro duplicado por engano"}, headers=auditor).status_code == 403
+    assert client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "curto"}, headers=analyst).status_code == 422
+    r = client.post(f"/api/registrations/{reg['id']}/delete", json={"reason": "Cadastro duplicado por engano"}, headers=analyst)
     assert r.status_code == 200 and r.json()["documents"] == 1
     with session_scope() as db:
         assert db.get(Registration, reg["id"]) is None
@@ -289,5 +289,5 @@ def test_admin_deletes_a_registration_for_good_but_not_an_approved_one(client, a
 
     ok = new_registration(client, analyst, "CLIENTE APROVADO SA")
     client.post(f"/api/registrations/{ok['id']}/decisions", json={"action": "approve", "override": True, "reason": "Aprovado em comitê com ressalvas"}, headers=supervisor)
-    r = client.post(f"/api/registrations/{ok['id']}/delete", json={"reason": "Tentativa de excluir aprovado"}, headers=admin)
+    r = client.post(f"/api/registrations/{ok['id']}/delete", json={"reason": "Tentativa de excluir aprovado"}, headers=analyst)
     assert r.status_code == 409 and r.json()["error"]["code"] == "retention_required"

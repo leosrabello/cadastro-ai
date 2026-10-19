@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
 import type { Decision, DocumentBrief, Finding, InfoItem, Modality, Page, PortfolioClient, RegistrationDetail as R } from "../api/types";
 import { useAuth, usePerm } from "../auth";
+import { DeleteRegistration } from "../components/DeleteRegistration";
 import { FindingCard } from "../components/FindingCard";
 import { ModalityTag } from "../components/ModalitySwitch";
 import { UploadZone } from "../components/Upload";
@@ -77,7 +78,7 @@ export function RegistrationDetail() {
         {(
           <div className="decide-bar" style={{ ["--i" as string]: 1 }}>
             <Link className="btn btn-ghost" to={`/cadastros/${r.id}/relatorio`}>Relatório da análise</Link>
-            {perm.admin && <button className="btn btn-ghost" onClick={() => setDeleting(true)}>Excluir</button>}
+            {perm.operate && <button className="btn btn-ghost" onClick={() => setDeleting(true)}>Excluir</button>}
             {perm.operate && !final && (
               <>
                 {perm.reject && <button className="btn btn-danger" onClick={() => setDeciding("reject")}>Reprovar</button>}
@@ -172,7 +173,7 @@ export function RegistrationDetail() {
         </div>
       </div>
       {linking && <LinkDialog r={r} onClose={() => setLinking(false)} />}
-      {deleting && <DeleteDialog r={r} onClose={() => setDeleting(false)} onDone={() => nav("/cadastros")} />}
+      {deleting && <DeleteRegistration r={{ ...r, documents: r.documents.length }} onClose={() => setDeleting(false)} onDone={() => nav("/cadastros")} />}
       {deciding && <DecisionDialog r={r} action={deciding} onClose={() => setDeciding(null)} />}
     </div>
   );
@@ -432,47 +433,6 @@ const DECISION_COPY: Record<Decision["action"], { title: string; button: string;
   escalate: { title: "Escalar para supervisão", button: "Escalar", reasonLabel: "O que o supervisor precisa avaliar", min: 10 },
   reopen: { title: "Reabrir cadastro", button: "Reabrir", reasonLabel: "Motivo da reabertura", min: 10 },
 };
-
-function DeleteDialog({ r, onClose, onDone }: { r: R; onClose: () => void; onDone: () => void }) {
-  const qc = useQueryClient();
-  const toast = useToast();
-  const [reason, setReason] = useState("");
-  const blocked = r.status === "approved" ? "Cadastros aprovados ficam guardados pelo prazo legal (5 anos após o fim do relacionamento). Se foi aprovado por engano, um supervisor precisa reabri-lo antes."
-    : r.legal_hold ? "Este cadastro está sob retenção legal. Remova a retenção antes de excluir." : null;
-  const del = useMutation({
-    mutationFn: () => api(`/api/registrations/${r.id}/delete`, { method: "POST", json: { reason } }),
-    onSuccess: () => {
-      for (const k of ["registrations", "dashboard", "queue"]) qc.invalidateQueries({ queryKey: [k] });
-      toast(`Cadastro ${r.code} excluído.`);
-      onDone();
-    },
-  });
-  return (
-    <Dialog title={`Excluir ${r.code}?`} onClose={onClose}>
-      {blocked ? (
-        <>
-          <p className="muted">{blocked}</p>
-          <div className="dialog-actions"><button className="btn btn-ghost" onClick={onClose}>Fechar</button></div>
-        </>
-      ) : (
-        <form className="form-grid" onSubmit={(e) => { e.preventDefault(); del.mutate(); }}>
-          <p className="muted">
-            Apaga de vez o cadastro, {r.documents.length === 1 ? "o documento enviado" : `os ${r.documents.length} documentos enviados`}, os pontos e as decisões. Não dá para desfazer.
-            O histórico de auditoria guarda só o código e o motivo.
-          </p>
-          <label className="label"><span>Motivo (fica na auditoria)</span>
-            <textarea className="textarea" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Ex.: cadastro duplicado, criado por engano, teste" /></label>
-          <span className="meta num">{reason.trim().length} de no mínimo 10 caracteres</span>
-          {del.isError && <p className="form-error">{errorText(del.error)}</p>}
-          <div className="dialog-actions">
-            <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
-            <button className="btn btn-danger" disabled={reason.trim().length < 10 || del.isPending}>{del.isPending ? "Excluindo…" : "Excluir de vez"}</button>
-          </div>
-        </form>
-      )}
-    </Dialog>
-  );
-}
 
 function LinkDialog({ r, onClose }: { r: R; onClose: () => void }) {
   const qc = useQueryClient();

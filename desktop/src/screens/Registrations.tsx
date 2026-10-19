@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { Page, RegistrationRow } from "../api/types";
-import { useAuth } from "../auth";
+import { useAuth, usePerm } from "../auth";
+import { DeleteRegistration, TrashIcon } from "../components/DeleteRegistration";
 import { ModalityTag } from "../components/ModalitySwitch";
 import { Empty, ErrorBox, LoadingRows, Pager, StatusMark } from "../components/ui";
 import { fmtTaxId, relative } from "../lib/format";
@@ -21,6 +22,8 @@ type Sort = "priority" | "created" | "updated" | "name" | "code";
 export function Registrations() {
   const nav = useNavigate();
   const { meta } = useAuth();
+  const perm = usePerm();
+  const [deleting, setDeleting] = useState<RegistrationRow | null>(null);
   const [params, setParams] = useSearchParams();
   const status = params.get("status") ?? "";
   const kind = params.get("tipo") ?? "";
@@ -109,6 +112,7 @@ export function Registrations() {
                 <th>Pendências</th>
                 <th><button onClick={() => sortBy("priority")} aria-sort={sortAttr("priority")}>Prioridade</button></th>
                 <th><button onClick={() => sortBy("updated")} aria-sort={sortAttr("updated")}>Atualizado</button></th>
+                {perm.operate && <th><span className="visually-hidden">Excluir</span></th>}
               </tr>
             </thead>
             <tbody>
@@ -137,11 +141,20 @@ export function Registrations() {
                     {r.priority_reasons[0] && <div className="meta">{r.priority_reasons[0].label}</div>}
                   </td>
                   <td className="meta num">{relative(r.updated_at)}</td>
+                  {perm.operate && (
+                    <td className="row-action">
+                      <button className="icon-btn" title={r.status === "approved" ? "Aprovado: fica guardado pelo prazo legal" : `Excluir ${r.code}`}
+                        aria-label={`Excluir cadastro ${r.code}`} onClick={(e) => { e.stopPropagation(); setDeleting(r); }}>
+                        <TrashIcon />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
           <Pager page={page} pageSize={25} total={q.data.total} onPage={(p) => update({ pagina: String(p) })} />
+          {deleting && <DeleteRegistration r={{ ...deleting, documents: deleting.document_count }} onClose={() => setDeleting(null)} />}
         </>
       )}
     </div>

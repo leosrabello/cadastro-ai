@@ -407,7 +407,7 @@ class DeleteIn(BaseModel):
 
 
 @router.post("/{rid}/delete")
-def delete_registration_endpoint(rid: uuid.UUID, body: DeleteIn, p: Principal = Depends(ADMINS), db: Session = Depends(get_db)):
+def delete_registration_endpoint(rid: uuid.UUID, body: DeleteIn, p: Principal = Depends(OPERATORS), db: Session = Depends(get_db)):
     """For registrations created by mistake, duplicated or for testing. Approved ones are kept for the
     legal retention period (AML); a supervisor reopens one approved by mistake before it can be deleted."""
     reg = get_registration(db, rid)

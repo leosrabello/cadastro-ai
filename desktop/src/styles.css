@@ -195,3 +195,8 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 .modality-tag[data-modality="one7"] { background: var(--accent); color: var(--accent-ink); }
 .field-set { border: 0; margin: 0; padding: 0; min-width: 0; }
 .field-set legend { padding: 0; margin-bottom: 6px; }
+
+/* a quiet icon action at the end of a table row; red on hover so it never reads as a primary action */
+.icon-btn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--radius); background: transparent; color: var(--muted); cursor: pointer; transition: background-color 120ms var(--ease), color 120ms var(--ease); }
+.icon-btn:hover { background: var(--surface-2); color: var(--danger); }
+.table td.row-action { width: 44px; text-align: right; vertical-align: middle; }
