@@ -170,7 +170,7 @@ function DocTypes({ data, readOnly }: { data: SettingsData; readOnly: boolean })
   return (
     <form className="settings-form wide" onSubmit={(e) => { e.preventDefault(); save.mutate({ key: "document_types", value: types }); }}>
       <Explain>Regras de validade por tipo. "Validade impressa" verifica a data de vencimento; "idade máxima" conta a partir da emissão. Estar dentro da regra não comprova autenticidade.</Explain>
-      <table className="table">
+      <div className="table-scroll"><table className="table">
         <thead><tr><th>Tipo</th><th>Validade impressa</th><th>Tolerância (dias)</th><th>Idade máxima (dias)</th><th>Observação</th></tr></thead>
         <tbody>
           {Object.entries(types).map(([k, t]) => (
@@ -183,7 +183,7 @@ function DocTypes({ data, readOnly }: { data: SettingsData; readOnly: boolean })
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       {!readOnly && <SaveBar pending={save.isPending} />}
     </form>
   );
@@ -321,7 +321,7 @@ function Users() {
   return (
     <div className="stack" style={{ gap: 32 }}>
       {q.isError ? <ErrorBox error={q.error} /> : !q.data ? <LoadingRows rows={4} /> : (
-        <table className="table">
+        <div className="table-scroll"><table className="table">
           <thead><tr><th>Nome</th><th>Perfil</th><th>Último acesso</th><th>Situação</th><th /></tr></thead>
           <tbody>
             {q.data.items.map((u) => (
@@ -346,7 +346,7 @@ function Users() {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       <form className="settings-form" onSubmit={(e) => { e.preventDefault(); create.mutate(); }}>
         <h2>Novo usuário</h2>
@@ -444,7 +444,7 @@ function System({ data }: { data: SettingsData }) {
           <h2 style={{ margin: "28px 0 6px" }}>Aprendido com as revisões</h2>
           <Explain>Calculado a partir das confirmações e correções feitas pelas analistas, neste servidor. O modelo de IA não é treinado com os documentos; o que muda é como o sistema usa as leituras.</Explain>
           {m.data.learning.length === 0 ? <p className="muted">Ainda não há correções repetidas o bastante para mudar a leitura.</p> : (
-            <table className="table">
+            <div className="table-scroll"><table className="table">
               <thead><tr><th>Documento</th><th>Campo</th><th>O que mudou</th></tr></thead>
               <tbody>
                 {m.data.learning.map((x: any) => (
@@ -458,7 +458,7 @@ function System({ data }: { data: SettingsData }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </table></div>
           )}
         </section>
       )}

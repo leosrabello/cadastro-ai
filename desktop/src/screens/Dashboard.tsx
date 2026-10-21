@@ -176,7 +176,7 @@ function PortfolioBand({ modality, q }: { modality: Modality; q: UseQueryResult<
             </section>
             <section>
               <h3 style={{ marginBottom: 10 }}>Por comercial</h3>
-              <table className="table compact">
+              <div className="table-scroll"><table className="table compact">
                 <thead><tr><th>Comercial</th><th className="num">Clientes</th><th className="num">Aptos</th><th className="num">Aprovação</th></tr></thead>
                 <tbody>
                   {s.by_commercial.slice(0, 8).map((c) => (
@@ -188,7 +188,7 @@ function PortfolioBand({ modality, q }: { modality: Modality; q: UseQueryResult<
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
               {s.by_commercial.length > 8 && <Link to="/relatorios" className="meta">Ver os {s.by_commercial.length} comerciais</Link>}
             </section>
           </div>

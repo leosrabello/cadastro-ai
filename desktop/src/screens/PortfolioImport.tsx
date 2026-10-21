@@ -99,7 +99,7 @@ export function ImportArea() {
             <details className="plan-rows">
               <summary>Ver os registros um a um</summary>
               <label className="check" style={{ margin: "10px 0" }}><input type="checkbox" checked={onlyProblems} onChange={(e) => setOnlyProblems(e.target.checked)} /> Só novos, alterados, mantidos e rejeitados</label>
-              <table className="table compact">
+              <div className="table-scroll"><table className="table compact">
                 <thead><tr><th>Resultado</th><th>Cliente</th><th>Modalidade</th><th>Comercial</th><th>Status</th><th>Entrada</th><th>Motivo</th></tr></thead>
                 <tbody>
                   {plan.preview.clients.filter((r) => !onlyProblems || r.action !== "unchanged").map((r, i) => (
@@ -114,7 +114,7 @@ export function ImportArea() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </details>
           )}
           {apply.isError && <div style={{ marginTop: 12 }}><ErrorBox error={apply.error} /></div>}
@@ -143,7 +143,7 @@ export function ImportArea() {
       <section className="import-history">
         <h2 style={{ marginBottom: 8 }}>Importações anteriores</h2>
         {history.isError ? <ErrorBox error={history.error} /> : !history.data ? null : history.data.items.length === 0 ? <p className="muted">Nenhuma importação ainda.</p> : (
-          <table className="table compact">
+          <div className="table-scroll"><table className="table compact">
             <thead><tr><th>Quando</th><th>Arquivo</th><th>Por</th><th className="num">Clientes novos</th><th className="num">Atualizados</th><th className="num">Rejeitados</th><th className="num">Contratos novos</th></tr></thead>
             <tbody>
               {history.data.items.map((h) => (
@@ -158,7 +158,7 @@ export function ImportArea() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </section>
     </div>

@@ -109,7 +109,7 @@ function Clients() {
       ) : (
         <>
           <p className="meta" style={{ marginBottom: 8 }}>{plural(q.data.total, "cliente", "clientes")}{filtered ? " com os filtros atuais" : ` na carteira ${MODALITY_LABEL[modality]}`}. Atrasado: parado no mesmo status há {cat.data.sla_days} dias ou mais.</p>
-          <table className="table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
+          <div className="table-scroll"><table className="table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
             <thead>
               <tr><th>Cliente</th><th>Comercial</th><th>Status</th><th>Situação</th><th>Entrada</th><th>Comitê</th><th className="num">Tempo total</th></tr>
             </thead>
@@ -134,7 +134,7 @@ function Clients() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <Pager page={page} pageSize={50} total={q.data.total} onPage={setPage} />
         </>
       )}
@@ -405,7 +405,7 @@ function Commercials() {
         </form>
       )}
       {q.data.items.length === 0 ? <Empty title="Nenhum comercial">Os comerciais entram junto com a importação da carteira, ou um a um aqui.</Empty> : (
-        <table className="table">
+        <div className="table-scroll"><table className="table">
           <thead><tr><th>Comercial</th><th className="num">Normal</th><th className="num">One7</th><th className="num">Total</th><th>Situação</th><th /></tr></thead>
           <tbody>
             {q.data.items.map((c) => (
@@ -428,7 +428,7 @@ function Commercials() {
             ))}
             {q.data.without_commercial > 0 && <tr><td className="muted">Sem comercial</td><td colSpan={2} /><td className="num">{q.data.without_commercial}</td><td colSpan={2} /></tr>}
           </tbody>
-        </table>
+        </table></div>
       )}
       <p className="meta" style={{ marginTop: 12, maxWidth: "80ch" }}>Desativar tira o comercial das escolhas de novos clientes; os clientes e os números dele continuam. Nomes iguais com acentos ou maiúsculas diferentes são o mesmo comercial. Juntar serve para dois nomes da mesma pessoa: os clientes e contratos passam para um só, e o outro nome continua reconhecido nas próximas importações.</p>
       {merging && <MergeDialog c={merging} others={q.data.items.filter((x) => x.id !== merging.id)} onDone={() => { setMerging(null); refresh(); }} onClose={() => setMerging(null)} />}

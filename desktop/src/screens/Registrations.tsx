@@ -121,7 +121,7 @@ export function Registrations() {
         </Empty>
       ) : (
         <>
-          <table className="table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
+          <div className="table-scroll"><table className="table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
             <thead>
               <tr>
                 <th><button onClick={() => sortBy("code")} aria-sort={sortAttr("code")}>Código</button></th>
@@ -180,7 +180,7 @@ export function Registrations() {
                 </Fragment>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <Pager page={page} pageSize={25} total={q.data.total} onPage={(p) => update({ pagina: String(p) })} />
           {deleting && <DeleteRegistration r={{ ...deleting, documents: deleting.document_count }} onClose={() => setDeleting(null)} />}
         </>

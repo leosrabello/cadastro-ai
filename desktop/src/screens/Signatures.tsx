@@ -109,12 +109,12 @@ export function Signatures() {
       ) : (
         <>
           <p className="meta" style={{ marginBottom: 8 }}>{plural(q.data.items.length, "empresa", "empresas")}. Aguardando primeiro, da emissão mais antiga para a mais recente.</p>
-          <table className="table sig-table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
+          <div className="table-scroll"><table className="table sig-table" style={{ opacity: q.isPlaceholderData ? 0.6 : 1 }}>
             <thead>
               <tr><th>Empresa</th><th>Contrato</th><th>Nº do processo</th><th>Emissão</th><th>Assinatura</th><th>Situação</th><th className="num">Dias</th><th>Cobranças</th></tr>
             </thead>
             {q.data.items.map((t) => <Company key={t.id} t={t} sla={q.data!.sla_days} readOnly={!perm.operate} onFollowups={() => setFollowups(t)} canDelete={perm.operate} />)}
-          </table>
+          </table></div>
         </>
       )}
       <p className="meta sig-limit">

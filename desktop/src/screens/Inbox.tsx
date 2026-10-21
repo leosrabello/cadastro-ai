@@ -45,7 +45,7 @@ export function Inbox() {
             <section style={{ marginTop: 48 }}>
               <h2 style={{ marginBottom: 4 }}>Arquivos não aceitos na pasta</h2>
               <p className="meta" style={{ marginBottom: 12 }}>Recusados ficam em _falhas e duplicados em _duplicados, cada um com um arquivo .motivo.txt ao lado.</p>
-              <table className="table">
+              <div className="table-scroll"><table className="table">
                 <thead><tr><th>Arquivo</th><th>Resultado</th><th>Motivo</th><th>Quando</th></tr></thead>
                 <tbody>
                   {q.data.ingest_problems.map((p) => (
@@ -57,7 +57,7 @@ export function Inbox() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </section>
           )}
         </>

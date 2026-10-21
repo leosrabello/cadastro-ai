@@ -1,7 +1,9 @@
-.detail-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-bottom: 22px; }
+.detail-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px 24px; margin-bottom: 22px; }
+.detail-head > :first-child { flex: 1 1 380px; min-width: 0; }
+.detail-head h1 { overflow-wrap: anywhere; }
 .detail-head h1 { margin-top: 4px; }
 .detail-sub { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 8px; align-items: center; }
-.decide-bar { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: flex-end; flex: none; }
+.decide-bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; flex: 0 1 auto; }
 .decision-note { background: var(--surface); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 22px; border-left: 4px solid var(--muted); }
 .decision-note[data-status="approved"] { border-left-color: var(--accent); }
 .decision-note[data-status="rejected"] { border-left-color: var(--danger); }
@@ -94,3 +96,9 @@
 .docs-table th, .docs-table td { padding-left: 8px; padding-right: 8px; }
 .docs-table td.row-action { width: 36px; padding: 6px 4px; }
 .docs-table .mark { white-space: normal; align-items: baseline; }
+
+/* below this width the slip goes above the documents instead of beside them */
+@media (max-width: 1180px) {
+  .detail-grid { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+  .slip-col { position: static; max-height: none; overflow: visible; }
+}

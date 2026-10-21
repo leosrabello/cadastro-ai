@@ -270,7 +270,7 @@ function DocGroups({ docs, isCompany, docName, onOpen, canDelete }: { docs: Docu
               </span>
             </button>
             {open[g.key] && (
-              <table className="table docs-table">
+              <div className="table-scroll"><table className="table docs-table">
                 <thead>
                   <tr><th>Documento</th><th>Validade</th><th>Análise</th><th>Recebido</th>{canDelete && <th aria-label="Excluir" />}</tr>
                 </thead>
@@ -295,7 +295,7 @@ function DocGroups({ docs, isCompany, docName, onOpen, canDelete }: { docs: Docu
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
         );

@@ -140,7 +140,7 @@ export function Reports() {
           <section style={{ marginTop: 40 }}>
             <h2 style={{ marginBottom: 10 }}>Comerciais</h2>
             <div className="table-scroll">
-              <table className="table compact">
+              <div className="table-scroll"><table className="table compact">
                 <thead><tr><th>Comercial</th><th className="num">Clientes</th><th className="num">Participação</th><th className="num">Aptos</th><th className="num">Negados</th><th className="num">Em andamento</th><th className="num">Atrasados</th><th className="num">Aprovação</th><th className="num">Até apto</th></tr></thead>
                 <tbody>
                   {s.by_commercial.map((c) => (
@@ -157,14 +157,14 @@ export function Reports() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </section>
 
           <section style={{ marginTop: 40 }}>
             <h2 style={{ marginBottom: 10 }}>Clientes ({s.rows?.length ?? 0})</h2>
             <div className="table-scroll">
-              <table className="table compact report-table">
+              <div className="table-scroll"><table className="table compact report-table">
                 <thead>
                   <tr>
                     <th>Cliente</th><th>Comercial</th><th>Status</th><th>Situação</th><th>Entrada</th><th>Pré-comitê</th><th>Comitê</th>
@@ -196,7 +196,7 @@ export function Reports() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </section>
         </div>

@@ -62,7 +62,7 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ---------- shell ---------- */
-.app { display: grid; grid-template-columns: 236px 1fr; height: 100%; }
+.app { display: grid; grid-template-columns: 236px minmax(0, 1fr); height: 100%; }
 .rail { display: flex; flex-direction: column; gap: 4px; padding: 20px 14px 16px; background: var(--bg); overflow-y: auto; }
 .wordmark { display: flex; align-items: center; gap: 10px; padding: 4px 8px 18px; font-size: var(--step-lead); font-weight: 600; letter-spacing: -0.02em; }
 .rail .btn-primary { margin: 0 0 14px; justify-content: center; }
@@ -76,8 +76,8 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 .nav-link .count { font-variant-numeric: tabular-nums; font-size: var(--step-meta); }
 .nav-link .count.hot { color: var(--accent-ink); background: var(--accent); padding: 0 7px; border-radius: 999px; }
 .rail-foot { margin-top: auto; padding: 14px 10px 0; display: grid; gap: 2px; }
-.main { overflow-y: auto; background: var(--bg); }
-.page { padding: 28px 40px 64px; max-width: 1480px; }
+.main { overflow-y: auto; min-width: 0; background: var(--bg); }
+.page { --page-x: 40px; padding: 28px var(--page-x) 64px; max-width: 1480px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
 .page-head p { margin-top: 6px; }
 
@@ -207,3 +207,13 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 .group-suggestions { max-height: 240px; overflow-y: auto; }
 .check.group-suggestion { align-items: flex-start; }
 .check.group-suggestion input { margin-top: 3px; flex: none; }
+
+/* wide tables scroll inside their own box instead of pushing the page past the window */
+.table-scroll { overflow-x: auto; max-width: 100%; }
+
+/* narrow windows, and browsers zoomed in */
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 196px minmax(0, 1fr); }
+  .page { --page-x: 24px; padding: 24px var(--page-x) 56px; }
+  .page-head { flex-wrap: wrap; }
+}
