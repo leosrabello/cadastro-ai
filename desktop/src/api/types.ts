@@ -111,6 +111,7 @@ export interface Validity {
 
 export interface DocumentBrief {
   id: string;
+  fields_to_review: number;
   registration_id: string | null;
   original_filename: string;
   mime_type: string;

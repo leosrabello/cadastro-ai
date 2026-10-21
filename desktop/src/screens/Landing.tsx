@@ -333,7 +333,7 @@ export function Landing() {
               <div className="ui-slip-row"><span>CPF legível em um documento</span><span className="mark num" data-tone="accent">938.570.839-21</span></div>
             </div>
             <div className="ui-actions">
-              <span className="ui-btn">Escalar</span>
+              <span className="ui-btn">Corrigir leituras</span>
               <span className="ui-btn ui-btn-on">Solicitar documentos</span>
               <span className="ui-btn ui-btn-off">Aprovar</span>
             </div>

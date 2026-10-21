@@ -159,6 +159,7 @@ def document_brief(d: Document) -> dict:
         "validity": d.validity,
         "suggested_registration_id": str(d.suggested_registration_id) if d.suggested_registration_id else None,
         "purged_at": iso(d.purged_at),
+        "fields_to_review": sum(1 for f in d.fields if f.status == "extracted" and f.value),
     }
 
 

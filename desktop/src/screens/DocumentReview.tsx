@@ -178,7 +178,7 @@ export function DocumentReview() {
             <p className="meta" style={{ marginBottom: 8 }}>Passe o mouse sobre um campo para ver de onde ele foi lido.</p>
             <ul className="fields">
               {d.fields.map((f) => (
-                <FieldRow key={f.id} f={f} docId={d.id} editable={perm.operate && !closed}
+                <FieldRow key={params.get("campo") === f.name ? `${f.id}:edit` : f.id} f={f} docId={d.id} editable={perm.operate && !closed} startEditing={params.get("campo") === f.name}
                   onHover={(on) => setHover(on && f.bbox && f.page !== null ? { page: f.page, bbox: f.bbox } : null)}
                   onFocus={() => f.bbox && f.page !== null && setFocus({ page: f.page, bbox: f.bbox })} />
               ))}
@@ -288,10 +288,12 @@ function Box({ bbox, kind, title }: { bbox: number[]; kind: "lit" | "field"; tit
   );
 }
 
-function FieldRow({ f, docId, editable, onHover, onFocus }: { f: ExtractedField; docId: string; editable: boolean; onHover: (on: boolean) => void; onFocus: () => void }) {
+function FieldRow({ f, docId, editable, onHover, onFocus, startEditing }: { f: ExtractedField; docId: string; editable: boolean; onHover: (on: boolean) => void; onFocus: () => void; startEditing?: boolean }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(!!startEditing && editable);
+  const row = useRef<HTMLLIElement>(null);
+  useEffect(() => { if (startEditing) row.current?.scrollIntoView({ block: "center" }); }, [startEditing]);
   const [value, setValue] = useState(f.value ? fmtFieldValue(f.name, f.value) : "");
   const [reason, setReason] = useState("");
   const m = useMutation({
@@ -310,7 +312,7 @@ function FieldRow({ f, docId, editable, onHover, onFocus }: { f: ExtractedField;
   };
   const differs = f.raw_value && f.value && f.raw_value.replace(/\W/g, "").toUpperCase() !== fmtFieldValue(f.name, f.value).replace(/\W/g, "").toUpperCase();
   return (
-    <li className="field" data-status={f.status} data-invalid={f.valid === false} onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
+    <li ref={row} className="field" data-status={f.status} data-invalid={f.valid === false} onMouseEnter={() => onHover(true)} onMouseLeave={() => onHover(false)}>
       <div className="field-top">
         <span className="meta">{f.label}</span>
         {f.status !== "extracted" ? <span className="meta">{f.status === "confirmed" ? "Confirmado" : "Corrigido"} pelo revisor</span> : <Confidence value={f.confidence} />}

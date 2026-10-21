@@ -59,7 +59,9 @@ export function FindingCard({ f, onEvidence, compact, closed }: { f: Finding; on
       {!closed && perm.operate && (
         <div className="finding-actions">
           {isOpen && canAccept && <button className="btn btn-sm" onClick={() => setAction("accept")}>Não é problema</button>}
-          {f.status === "open" && <button className="btn btn-sm" onClick={() => setAction("escalate")}>Escalar</button>}
+          {f.status === "open" && f.field_name && f.document_id && (
+            <Link className="btn btn-sm" to={`/documentos/${f.document_id}?campo=${f.field_name}`}>Corrigir campo</Link>
+          )}
           {isOpen && perm.override && f.source !== "human" && <button className="btn btn-sm btn-ghost" onClick={() => setAction("override")}>Sobrepor regra</button>}
           {!isOpen && perm.override && <button className="btn btn-sm btn-ghost" onClick={() => setAction("reopen")}>Reabrir</button>}
         </div>

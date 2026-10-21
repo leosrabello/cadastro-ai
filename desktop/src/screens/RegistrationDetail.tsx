@@ -57,6 +57,9 @@ export function RegistrationDetail() {
 
   const final = r.status === "approved" || r.status === "rejected";
   const closed = r.status === "rejected";
+  // every reading the analyst confirms or corrects is what the extraction learns from
+  const toReview = r.documents.find((d) => d.fields_to_review > 0);
+  const toReviewCount = r.documents.reduce((n, d) => n + (d.fields_to_review ?? 0), 0);
   const docTypes = meta?.document_types ?? {};
   const docName = (d: DocumentBrief) => (d.doc_type ? docTypes[d.doc_type]?.label ?? d.doc_type : "Tipo não identificado");
 
@@ -87,7 +90,10 @@ export function RegistrationDetail() {
             {perm.operate && !final && (
               <>
                 {perm.reject && <button className="btn btn-danger" onClick={() => setDeciding("reject")}>Reprovar</button>}
-                <button className="btn" onClick={() => setDeciding("escalate")}>Escalar</button>
+                <button className="btn" disabled={!toReview} title={toReview ? "Abre o primeiro documento com leituras a conferir; use Próximo para seguir" : "Todas as leituras já foram conferidas"}
+                  onClick={() => toReview && nav(`/documentos/${toReview.id}`)}>
+                  Corrigir leituras{toReviewCount ? ` (${toReviewCount})` : ""}
+                </button>
                 <button className="btn" onClick={() => setDeciding("request_documents")}>Solicitar documentos</button>
                 {perm.approve && (
                   <button className="btn btn-primary" onClick={() => setDeciding("approve")} disabled={!!r.checklist.processing}>
@@ -309,7 +315,12 @@ function DocState({ d }: { d: DocumentBrief }) {
   if (d.status === "queued" || d.status === "processing") return <Mark tone="muted">{d.status === "queued" ? "Na fila" : "Lendo o documento"}</Mark>;
   if (d.status === "failed") return <span className="danger-text">Falhou: {d.processing_error?.split(":")[0]}</span>;
   if (d.status === "purged") return <span className="muted">Expurgado</span>;
-  return <Mark tone="ink">Concluída{d.ai_status === "done" ? " com IA" : ""}</Mark>;
+  return (
+    <>
+      <Mark tone="ink">Concluída{d.ai_status === "done" ? " com IA" : ""}</Mark>
+      {d.fields_to_review > 0 && <div className="meta">{plural(d.fields_to_review, "leitura a conferir", "leituras a conferir")}</div>}
+    </>
+  );
 }
 
 function Slip({ r }: { r: R }) {

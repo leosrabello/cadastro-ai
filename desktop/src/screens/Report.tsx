@@ -280,8 +280,8 @@ const Sheet = forwardRef<HTMLDivElement, { rep: Report; photo: string | null; pa
           <table className="rs-table">
             <thead><tr><th>Exercício</th><th>Receita líquida</th><th>Lucro líquido</th><th>Patrimônio líquido</th><th>Ativo total</th></tr></thead>
             <tbody>
-              {rep.statements.map((st) => (
-                <tr key={st.exercicio ?? "?"}>
+              {rep.statements.map((st, i) => (
+                <tr key={`${st.exercicio ?? "?"}-${i}`}>
                   <td>{st.exercicio}</td><td className="num">{brl(st.receita_liquida)}</td>
                   <td className="num" data-negative={(st.lucro_liquido ?? 0) < 0}>{brl(st.lucro_liquido)}</td>
                   <td className="num">{brl(st.patrimonio_liquido)}</td><td className="num">{brl(st.ativo_total)}</td>
