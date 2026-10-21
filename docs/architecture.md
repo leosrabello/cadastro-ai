@@ -53,6 +53,7 @@ claim (atomic: queued|failed → processing; a second worker gets "skipped")
  → load + verify hash → render pages (PyMuPDF) + embedded text layer + file metadata
  → OCR each page (provider) ; PDFs with a text layer use it, and OCR checks it
  → classify (configured keywords)  → extract fields (label/position/pattern, page + box + confidence)
+ → learned lessons: drop rule readings the analysts corrected away (pipeline/learning.py)
  → integrity: text layer vs page, editor metadata, incremental saves, ELA, embedded instructions
  → AI (optional): text (+ images if allowed) as quoted data → JSON schema → validated → merged as
    findings and as fields only where rules found nothing; disagreements become findings
@@ -66,6 +67,23 @@ exponential backoff (4 tries), then `failed`. Unreadable or rejected input → `
 `failed` with a `PROCESSING_FAILED` finding. AI unavailable or invalid output → the document is
 still processed; an informational finding records that AI did not run. Workers that die mid-job
 are detected by the sweeper (job running > 15 min) and the document is re-queued.
+
+### Learning from reviews (`pipeline/learning.py`)
+
+The AI model is not trained on these documents, and nothing about the reviews is sent to the
+provider. What the system learns is local, recomputed from `extracted_fields` and the
+disagreement points, per document type and field:
+
+- **Values corrected away.** A rule reading that analysts replaced is not offered again for that
+  type and field: it is dropped, so the AI (or the analyst) fills the field. A value with digits
+  needs corrections on two documents, and a value an analyst ever kept is never dropped.
+- **Whose reading wins.** When rules and AI disagreed (`AI_RULE_DISAGREEMENT`) and the reviewed
+  value matched the AI's reading at least twice and more often than the rules', the AI's reading
+  becomes the field value. The rules' reading stays in the disagreement point.
+
+Settings → Sistema lists the lessons in force (counts only: the values may be personal data).
+Systematic errors still become rule fixes, with a test built from the production layout and
+invented data (`tests/test_extraction_layouts.py`).
 
 Findings carry a fingerprint (registration, document, code, field, discriminator). Re-running
 the analysis updates machine output but keeps a reviewer's resolution; findings no longer

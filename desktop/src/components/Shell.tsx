@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { Dashboard, Modality, Page, PortfolioClient, RegistrationRow } from "../api/types";
+import type { Dashboard, Modality, RegistrationRow } from "../api/types";
 import { useAuth, usePerm } from "../auth";
 import { ROLES } from "../lib/format";
 import { MODALITY_LABEL } from "../lib/modality";
@@ -71,18 +71,19 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
   const [kind, setKind] = useState(profiles[0]?.[0] ?? "PF");
   // no default: the analyst says which line of business this is
   const [modality, setModalityChoice] = useState<Modality | null>(null);
-  const [clientId, setClientId] = useState("");
+  const [commercialId, setCommercialId] = useState("");
   const [name, setName] = useState("");
   const [taxId, setTaxId] = useState("");
   const [tried, setTried] = useState(false);
   const kindInfo = meta?.profiles[kind];
-  const clients = useQuery({
-    queryKey: ["portfolio-clients-names", modality],
-    enabled: !!modality,
-    queryFn: () => api<Page<PortfolioClient>>(`/api/portfolio/clients?modality=${modality}&sort=name&page_size=500`),
+  const catalog = useQuery({
+    queryKey: ["portfolio-catalog"],
+    queryFn: () => api<{ commercials: { id: string; name: string; is_active: boolean }[] }>("/api/portfolio/catalog"),
+    staleTime: 60_000,
   });
+  const commercials = (catalog.data?.commercials ?? []).filter((c) => c.is_active);
   const create = useMutation({
-    mutationFn: () => api<RegistrationRow>("/api/registrations", { method: "POST", json: { kind, modality, client_id: clientId || null, subject_name: name, tax_id: taxId || null } }),
+    mutationFn: () => api<RegistrationRow>("/api/registrations", { method: "POST", json: { kind, modality, commercial_id: commercialId || null, subject_name: name, tax_id: taxId || null } }),
     onSuccess: (reg) => {
       qc.invalidateQueries({ queryKey: ["registrations"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
@@ -96,11 +97,6 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
     if (!modality) return;
     create.mutate();
   };
-  const pickClient = (id: string) => {
-    setClientId(id);
-    const c = clients.data?.items.find((x) => x.id === id);
-    if (c && !name.trim()) setName(c.name);
-  };
   return (
     <Dialog title="Novo cadastro" onClose={onClose}>
       <p className="muted" style={{ marginBottom: 18 }}>
@@ -112,24 +108,20 @@ function NewRegistration({ onClose }: { onClose: () => void }) {
           <div className="segmented" role="radiogroup" aria-label="Modalidade" aria-required="true">
             {(["normal", "one7"] as Modality[]).map((m) => (
               <button type="button" role="radio" key={m} aria-checked={modality === m} aria-pressed={modality === m}
-                onClick={() => { setModalityChoice(m); setClientId(""); }}>
+                onClick={() => setModalityChoice(m)}>
                 {MODALITY_LABEL[m]}
               </button>
             ))}
           </div>
           {tried && !modality && <span className="form-error">Escolha a modalidade do cadastro.</span>}
         </fieldset>
-        {modality && (
-          <label className="label">
-            <span>Cliente da carteira {MODALITY_LABEL[modality]} (opcional)</span>
-            <select className="select" value={clientId} onChange={(e) => pickClient(e.target.value)}>
-              <option value="">Nenhum: cliente ainda fora da carteira</option>
-              {clients.data?.items.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}{c.commercial ? `, ${c.commercial.name}` : ""}</option>
-              ))}
-            </select>
-          </label>
-        )}
+        <label className="label">
+          <span>Comercial responsável</span>
+          <select className="select" value={commercialId} onChange={(e) => setCommercialId(e.target.value)}>
+            <option value="">Ainda não definido</option>
+            {commercials.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
         <div className="segmented" role="group" aria-label="Tipo de cadastro">
           {profiles.map(([k, p]) => (
             <button type="button" key={k} aria-pressed={kind === k} onClick={() => setKind(k)}>

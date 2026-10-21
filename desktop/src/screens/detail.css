@@ -91,3 +91,6 @@
 .doc-group .docs-table { margin-top: 0; }
 .doc-group .docs-table th:first-child, .doc-group .docs-table td:first-child { padding-left: 40px; }
 .doc-group-body { padding: 4px 12px 12px; }
+.docs-table th, .docs-table td { padding-left: 8px; padding-right: 8px; }
+.docs-table td.row-action { width: 36px; padding: 6px 4px; }
+.docs-table .mark { white-space: normal; align-items: baseline; }

@@ -43,6 +43,12 @@ def _latest(docs: list[Document], doc_type: str) -> Document | None:
     return max(cands, key=lambda d: (_f(d, "exercicio") or "", d.received_at)) if cands else None
 
 
+def _commercial_name(reg) -> str | None:
+    if reg.commercial:
+        return reg.commercial.name
+    return reg.client.commercial.name if reg.client and reg.client.commercial else None
+
+
 @router.get("/registrations/{rid}/report")
 def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depends(get_db)):
     reg = get_registration(db, rid)
@@ -182,7 +188,7 @@ def report(rid: uuid.UUID, p: Principal = Depends(ANY_ROLE), db: Session = Depen
         "documents": [{"id": str(d.id), "type": types.get(d.doc_type, {}).get("label", d.doc_type or "Não identificado"),
                        "validity": (d.validity or {}).get("state"), "ai_summary": (d.classification or {}).get("ai_summary")} for d in docs],
         # the commercial comes from the linked portfolio client unless the analyst typed one
-        "analysis": {k: refs.get(k) or (reg.client.commercial.name if k == "comercial" and reg.client and reg.client.commercial else None) for k in ANALYST_FIELDS},
+        "analysis": {k: refs.get(k) or (_commercial_name(reg) if k == "comercial" else None) for k in ANALYST_FIELDS},
         "decision": {"action": decision.action, "reason": decision.reason, "by": decision.decided_by.name if decision.decided_by else None,
                      "at": iso(decision.decided_at)} if decision else None,
         "images": {"visit_document_id": str(visit.id) if visit else None, "page_document_ids": thumbs},

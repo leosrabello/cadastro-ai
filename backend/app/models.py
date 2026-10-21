@@ -120,6 +120,8 @@ class Registration(Base):
     kind: Mapped[str] = mapped_column(String(32))  # requirement profile key, e.g. "PF", "PJ"
     modality: Mapped[str] = mapped_column(String(16), default=Modality.NORMAL, server_default=Modality.NORMAL, index=True)
     client_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("portfolio_clients.id"), index=True)
+    commercial_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("commercials.id"), index=True)
+    group_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("economic_groups.id"), index=True)
     subject_name: Mapped[str] = mapped_column(String(300))
     tax_id: Mapped[str | None] = mapped_column(String(32), index=True)  # digits only
     reference_fields: Mapped[dict] = mapped_column(JSONB, default=dict)
@@ -142,6 +144,19 @@ class Registration(Base):
     created_by: Mapped[User | None] = relationship(foreign_keys=[created_by_id])
     decided_by: Mapped[User | None] = relationship(foreign_keys=[decided_by_id])
     client: Mapped["PortfolioClient | None"] = relationship(foreign_keys=[client_id])
+    commercial: Mapped["Commercial | None"] = relationship(foreign_keys=[commercial_id])
+    group: Mapped["EconomicGroup | None"] = relationship(foreign_keys=[group_id])
+
+
+class EconomicGroup(Base):
+    """Companies under common control (grupo econômico), set by the analyst, suggested from shared partners or CNPJ root."""
+
+    __tablename__ = "economic_groups"
+
+    id: Mapped[uuid.UUID] = uuid_pk()
+    name: Mapped[str] = mapped_column(String(200))
+    name_key: Mapped[str] = mapped_column(String(200), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Commercial(Base):
@@ -452,6 +467,7 @@ __all__ = [
     "Commercial",
     "Counter",
     "DataImport",
+    "EconomicGroup",
     "Decision",
     "DocStatus",
     "Document",

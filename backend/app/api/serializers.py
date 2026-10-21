@@ -71,6 +71,9 @@ def registration_row(r: Registration, doc_count: int | None = None, open_finding
         "kind": r.kind,
         "modality": r.modality,
         "client": {"id": str(r.client.id), "name": r.client.name, "commercial": r.client.commercial.name if r.client.commercial else None} if r.client else None,
+        "commercial": ({"id": str(r.commercial.id), "name": r.commercial.name} if r.commercial
+                       else {"id": str(r.client.commercial.id), "name": r.client.commercial.name} if r.client and r.client.commercial else None),
+        "group": {"id": str(r.group.id), "name": r.group.name} if r.group else None,
         "subject_name": r.subject_name,
         "tax_id": r.tax_id,
         "status": r.status,

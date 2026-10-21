@@ -207,6 +207,8 @@ def delete_document(did: uuid.UUID, body: DocumentDeleteIn, p: Principal = Depen
     reg = db.get(Registration, doc.registration_id) if doc.registration_id else None
     if reg is not None and reg.legal_hold:
         raise ApiError(409, "legal_hold", "Cadastro sob retenção legal; os documentos não podem ser excluídos.")
+    if reg is not None and reg.status == RegStatus.APPROVED:
+        raise ApiError(409, "approved", "Cadastro aprovado: os documentos ficam guardados pelo prazo legal.")
     if doc.status in (DocStatus.QUEUED, DocStatus.PROCESSING):
         raise ApiError(409, "processing", "O documento ainda está sendo analisado. Aguarde terminar para excluir.")
     store = get_store()

@@ -102,3 +102,10 @@ supporting the ANPD incident assessment (Resolution 15/2024).
   least five years after the end of the relationship (Lei 9.613/1998, art. 10; CVM Resolução 50,
   for a securitizadora). LGPD art. 16, I allows retention to meet a legal obligation. Deleting
   them requires another place that keeps the dossier for that period.
+- **Files sent by mistake** (wrong person, wrong version, sent twice) can be deleted by analysts
+  from the registration page or the document page, with a reason kept in the audit (the audit
+  keeps type, hash and reason, not the file name). Documents of approved registrations cannot be
+  deleted, for the retention above; the API refuses it.
+- **Learning from reviews** stays in this database and is computed from the reviews themselves;
+  the supervisors' panel shows counts, not the values (they may be personal data). Nothing is
+  sent to the AI provider beyond the document being analyzed.

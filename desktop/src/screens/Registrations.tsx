@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api/client";
 import type { Page, RegistrationRow } from "../api/types";
@@ -7,7 +7,7 @@ import { useAuth, usePerm } from "../auth";
 import { DeleteRegistration, TrashIcon } from "../components/DeleteRegistration";
 import { ModalityTag } from "../components/ModalitySwitch";
 import { Empty, ErrorBox, LoadingRows, Pager, StatusMark } from "../components/ui";
-import { fmtTaxId, relative } from "../lib/format";
+import { fmtTaxId, plural, relative } from "../lib/format";
 
 const FILTERS: { key: string; label: string; statuses: string }[] = [
   { key: "todos", label: "Todos", statuses: "" },
@@ -31,6 +31,9 @@ export function Registrations() {
   const sort = (params.get("ordem") as Sort) ?? "priority";
   const direction = params.get("dir") ?? (sort === "name" || sort === "code" ? "asc" : "desc");
   const page = Number(params.get("pagina") ?? 1);
+  const grouped = params.get("agrupar") === "grupo";
+  const groupFilter = params.get("grupo") ?? "";
+  const groups = useQuery({ queryKey: ["groups"], enabled: grouped, queryFn: () => api<{ items: { id: string; name: string; members: number }[] }>("/api/groups") });
   const [search, setSearch] = useState(params.get("q") ?? "");
 
   useEffect(() => {
@@ -50,6 +53,8 @@ export function Registrations() {
   if (status) query.set("status", status);
   if (kind) query.set("kind", kind);
   if (modality) query.set("modality", modality);
+  if (grouped) query.set("grouped", "true");
+  if (grouped && groupFilter) query.set("group_id", groupFilter);
   const q = useQuery({
     queryKey: ["registrations", query.toString()],
     queryFn: () => api<Page<RegistrationRow>>(`/api/registrations?${query}`),
@@ -90,7 +95,20 @@ export function Registrations() {
             ))}
           </select>
         </div>
-        <input className="input" style={{ width: 320 }} type="search" placeholder="Buscar por nome, código ou CPF/CNPJ" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Buscar cadastros" />
+        <div className="row">
+          <label className="check">
+            <input type="checkbox" checked={grouped} onChange={(e) => update({ agrupar: e.target.checked ? "grupo" : null, grupo: null, pagina: null })} />
+            <span>Agrupar por grupo econômico</span>
+          </label>
+          {grouped && (
+            <select className="select" style={{ width: 200 }} value={groupFilter} onChange={(e) => update({ grupo: e.target.value || null, pagina: null })} aria-label="Grupo econômico">
+              <option value="">Todos os grupos</option>
+              <option value="none">Sem grupo econômico</option>
+              {groups.data?.items.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+          )}
+          <input className="input" style={{ width: 320 }} type="search" placeholder="Buscar por nome, código ou CPF/CNPJ" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Buscar cadastros" />
+        </div>
       </div>
 
       {q.isError ? (
@@ -116,14 +134,23 @@ export function Registrations() {
               </tr>
             </thead>
             <tbody>
-              {q.data.items.map((r) => (
-                <tr key={r.id} className="clickable" onClick={() => nav(`/cadastros/${r.id}`)}>
+              {q.data.items.map((r, i, all) => (
+                <Fragment key={r.id}>
+                {grouped && (i === 0 || all[i - 1].group?.id !== r.group?.id) && (
+                  <tr className="group-row">
+                    <th colSpan={perm.operate ? 7 : 6} scope="colgroup">
+                      {r.group ? r.group.name : "Sem grupo econômico"}
+                      <span className="meta num"> · {plural(all.filter((x) => x.group?.id === r.group?.id).length, "cadastro", "cadastros")} nesta página</span>
+                    </th>
+                  </tr>
+                )}
+                <tr className="clickable" onClick={() => nav(`/cadastros/${r.id}`)}>
                   <td className="num">
                     <a href={`#/cadastros/${r.id}`} onClick={(e) => e.stopPropagation()}>{r.code}</a>
                   </td>
                   <td>
                     <div className="strong">{r.subject_name}</div>
-                    <div className="meta num"><ModalityTag modality={r.modality} /> {meta?.profiles[r.kind]?.label ?? r.kind} · {fmtTaxId(r.tax_id)}{r.client?.commercial ? ` · ${r.client.commercial}` : ""}</div>
+                    <div className="meta num"><ModalityTag modality={r.modality} /> {meta?.profiles[r.kind]?.label ?? r.kind} · {fmtTaxId(r.tax_id)}{r.commercial ? ` · ${r.commercial.name}` : ""}{r.group && !grouped ? ` · ${r.group.name}` : ""}</div>
                   </td>
                   <td><StatusMark status={r.status} /></td>
                   <td>
@@ -150,6 +177,7 @@ export function Registrations() {
                     </td>
                   )}
                 </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

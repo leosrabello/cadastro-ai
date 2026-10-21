@@ -14,10 +14,12 @@ from app.deps import ANY_ROLE, OPERATORS, SUPERVISORS, ADMINS, Principal
 from app.errors import ApiError
 from app.models import (
     AuditEvent,
+    Commercial,
     Counter,
     Decision,
     DocStatus,
     Document,
+    EconomicGroup,
     Finding,
     FindingStatus,
     Modality,
@@ -50,6 +52,7 @@ class RegistrationIn(BaseModel):
     kind: str = Field(min_length=1, max_length=32)
     modality: Literal["normal", "one7"]  # required: no default, the analyst chooses
     client_id: uuid.UUID | None = None
+    commercial_id: uuid.UUID | None = None
     subject_name: str = Field(min_length=3, max_length=300)
     tax_id: str | None = Field(None, max_length=32)
     reference_fields: dict[str, str] = Field(default_factory=dict)
@@ -67,6 +70,10 @@ class RegistrationPatch(BaseModel):
     modality: Literal["normal", "one7"] | None = None
     client_id: uuid.UUID | None = None
     clear_client: bool = False
+    commercial_id: uuid.UUID | None = None
+    clear_commercial: bool = False
+    group_id: uuid.UUID | None = None
+    clear_group: bool = False
     tax_id: str | None = Field(None, max_length=32)
     reference_fields: dict[str, str] | None = None
 
@@ -121,6 +128,15 @@ def _portfolio_client(db: Session, client_id: uuid.UUID | None, modality: str) -
     return client
 
 
+def _commercial(db: Session, cid: uuid.UUID | None) -> Commercial | None:
+    if cid is None:
+        return None
+    com = db.get(Commercial, cid)
+    if com is None:
+        raise ApiError(422, "invalid_commercial", "Comercial não encontrado.")
+    return com
+
+
 def get_registration(db: Session, rid: uuid.UUID) -> Registration:
     reg = db.get(Registration, rid)
     if reg is None:
@@ -134,7 +150,9 @@ def list_registrations(
     status: str | None = None,
     kind: str | None = None,
     modality: Literal["normal", "one7"] | None = None,
+    group_id: str | None = None,
     ready: bool | None = None,
+    grouped: bool = False,
     sort: Literal["priority", "created", "updated", "name", "code"] = "priority",
     direction: Literal["asc", "desc"] = "desc",
     page: int = Query(1, ge=1),
@@ -156,6 +174,10 @@ def list_registrations(
         stmt = stmt.where(Registration.kind == kind)
     if modality:
         stmt = stmt.where(Registration.modality == modality)
+    if group_id == "none":
+        stmt = stmt.where(Registration.group_id.is_(None))
+    elif group_id:
+        stmt = stmt.where(Registration.group_id == uuid.UUID(group_id))
     if ready is not None:
         stmt = stmt.where(Registration.ready_for_decision.is_(ready))
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar_one()
@@ -166,8 +188,12 @@ def list_registrations(
         "name": Registration.subject_name,
         "code": Registration.code,
     }[sort]
-    order = col.desc() if direction == "desc" else col.asc()
-    stmt = stmt.order_by(order, Registration.created_at.asc()).offset((page - 1) * page_size).limit(page_size)
+    order = [col.desc() if direction == "desc" else col.asc(), Registration.created_at.asc()]
+    if grouped:
+        # members of an economic group together, groups by name, then those without a group
+        stmt = stmt.outerjoin(EconomicGroup, EconomicGroup.id == Registration.group_id)
+        order = [EconomicGroup.name.asc().nulls_last(), *order]
+    stmt = stmt.order_by(*order).offset((page - 1) * page_size).limit(page_size)
     rows = db.execute(stmt).all()
     return {"items": [registration_row(r, docs) for r, docs in rows], "total": total, "page": page, "page_size": page_size}
 
@@ -184,6 +210,7 @@ def create_registration(body: RegistrationIn, p: Principal = Depends(OPERATORS),
         kind=body.kind,
         modality=body.modality,
         client=client,
+        commercial=_commercial(db, body.commercial_id) or (client.commercial if client else None),
         subject_name=" ".join(body.subject_name.split()).upper(),
         tax_id=tax_id,
         reference_fields=body.reference_fields,
@@ -243,7 +270,8 @@ def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = 
     if reg.status in RegStatus.CLOSED:
         raise ApiError(409, "registration_closed", "Cadastro reprovado. Reabra-o antes de editar.")
     before = {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields,
-              "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None}
+              "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None,
+              "commercial_id": str(reg.commercial_id) if reg.commercial_id else None, "group_id": str(reg.group_id) if reg.group_id else None}
     if body.modality is not None:
         reg.modality = body.modality
     if body.clear_client:
@@ -252,6 +280,17 @@ def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = 
         reg.client = _portfolio_client(db, body.client_id, reg.modality)
     elif reg.client_id and body.modality is not None:
         _portfolio_client(db, reg.client_id, reg.modality)
+    if body.clear_commercial:
+        reg.commercial = None
+    elif body.commercial_id is not None:
+        reg.commercial = _commercial(db, body.commercial_id)
+    if body.clear_group:
+        reg.group = None
+    elif body.group_id is not None:
+        group = db.get(EconomicGroup, body.group_id)
+        if group is None:
+            raise ApiError(422, "invalid_group", "Grupo econômico não encontrado.")
+        reg.group = group
     if body.subject_name is not None:
         reg.subject_name = " ".join(body.subject_name.split()).upper()
     if body.tax_id is not None:
@@ -261,7 +300,9 @@ def update_registration(rid: uuid.UUID, body: RegistrationPatch, p: Principal = 
     analyze_registration(db, reg.id)
     audit.record(db, "registration.updated", actor=p.user, entity_type="registration", entity_id=reg.id, registration_id=reg.id,
                  details={"before": before, "after": {"subject_name": reg.subject_name, "tax_id": reg.tax_id, "reference_fields": reg.reference_fields,
-                                                      "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None}}, ip=p.ip)
+                                                      "modality": reg.modality, "client_id": str(reg.client_id) if reg.client_id else None,
+                                                      "commercial_id": str(reg.commercial_id) if reg.commercial_id else None,
+                                                      "group_id": str(reg.group_id) if reg.group_id else None}}, ip=p.ip)
     db.commit()
     return registration_row(reg)
 

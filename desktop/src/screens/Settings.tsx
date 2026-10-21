@@ -441,6 +441,25 @@ function System({ data }: { data: SettingsData }) {
             <div><dt className="muted">Campos corrigidos na revisão</dt><dd className="num">{m.data.fields_reviewed.corrected} de {m.data.fields_reviewed.corrected + m.data.fields_reviewed.confirmed} revisados</dd></div>
           </dl>
           <p className="meta" style={{ marginTop: 10 }}>{m.data.note}</p>
+          <h2 style={{ margin: "28px 0 6px" }}>Aprendido com as revisões</h2>
+          <Explain>Calculado a partir das confirmações e correções feitas pelas analistas, neste servidor. O modelo de IA não é treinado com os documentos; o que muda é como o sistema usa as leituras.</Explain>
+          {m.data.learning.length === 0 ? <p className="muted">Ainda não há correções repetidas o bastante para mudar a leitura.</p> : (
+            <table className="table">
+              <thead><tr><th>Documento</th><th>Campo</th><th>O que mudou</th></tr></thead>
+              <tbody>
+                {m.data.learning.map((x: any) => (
+                  <tr key={`${x.doc_type}.${x.field}`}>
+                    <td>{x.doc_type_label}</td>
+                    <td>{x.field_label}</td>
+                    <td>{[
+                      x.rejected_values ? `${x.rejected_values} ${x.rejected_values === 1 ? "leitura descartada não é mais oferecida" : "leituras descartadas não são mais oferecidas"}` : null,
+                      x.prefer_ai ? `usa a leitura da IA (a IA acertou ${x.ai_wins}×, as regras ${x.rule_wins}×)` : null,
+                    ].filter(Boolean).join(" · ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </section>
       )}
     </div>

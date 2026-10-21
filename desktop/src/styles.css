@@ -200,3 +200,10 @@ h3 { font-size: var(--step-ui); font-weight: 600; }
 .icon-btn { display: inline-grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: var(--radius); background: transparent; color: var(--muted); cursor: pointer; transition: background-color 120ms var(--ease), color 120ms var(--ease); }
 .icon-btn:hover { background: var(--surface-2); color: var(--danger); }
 .table td.row-action { width: 44px; text-align: right; vertical-align: middle; }
+.check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: var(--step-ui); cursor: pointer; }
+.check input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px; }
+.table tr.group-row th { padding: 18px 12px 8px; color: var(--ink); font-weight: 600; font-size: var(--step-ui); border-bottom: 1px solid var(--line); white-space: normal; }
+.table tbody tr.group-row:first-child th { padding-top: 10px; }
+.group-suggestions { max-height: 240px; overflow-y: auto; }
+.check.group-suggestion { align-items: flex-start; }
+.check.group-suggestion input { margin-top: 3px; flex: none; }

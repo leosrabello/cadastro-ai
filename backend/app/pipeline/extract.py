@@ -66,7 +66,20 @@ LABELS: dict[str, list[str]] = {
 NAME_EXCLUDE = ("MAE", "PAI", "FILIACAO", "EMPRESARIAL", "SOCIAL", "FANTASIA", "SOCIO", "MUNICIPIO")
 # column headings that share a line with a label on card layouts (CNH: "NOME E SOBRENOME  1ª HABILITAÇÃO")
 COLUMN_HEADINGS = ("HABILITACAO", "CAT HAB", "ACC", "ASSINATURA")
-ALL_LABEL_WORDS = sorted({lbl for labels in LABELS.values() for lbl in labels} | set(COLUMN_HEADINGS), key=len, reverse=True)
+# cartão CNPJ headings: on a scanned card OCR reads a row of headings first, then the row of values
+CARD_HEADINGS = ("NUMERO", "COMPLEMENTO", "BAIRRO/DISTRITO", "MUNICIPIO", "UF", "DATA DE CONSTITUICAO", "DATA DE ABERTURA",
+                 "DATA DA SITUACAO CADASTRAL", "ENDERECO ELETRONICO", "TELEFONE", "PORTE", "NOME DE FANTASIA",
+                 "TITULO DO ESTABELECIMENTO (NOME DE FANTASIA)", "MOTIVO DE SITUACAO CADASTRAL", "ENTE FEDERATIVO RESPONSAVEL (EFR)")
+# single words such as NUMERO also occur inside values, so only the longer headings end a value on its line
+ALL_LABEL_WORDS = sorted({lbl for labels in LABELS.values() for lbl in labels} | set(COLUMN_HEADINGS)
+                         | {h for h in CARD_HEADINGS if " " in h or "/" in h}, key=len, reverse=True)
+HEADINGS = {re.sub(r"[^A-Z ]", "", h).strip() for h in (*ALL_LABEL_WORDS, *CARD_HEADINGS)}
+COMPANY_SUFFIX = re.compile(r"\b(LTDA|S\.?\s?A|S/A|EIRELI|EPP|ME|SLU|SOCIEDADE ANONIMA|COOPERATIVA)\.?$")
+NAME_PARTICLES = {"DE", "DA", "DO", "DAS", "DOS", "E"}
+UTILITIES = re.compile(r"\b(COPEL|CEMIG|ENEL|ENERGISA|CPFL|LIGHT|EQUATORIAL|NEOENERGIA|COELBA|CELPE|COSERN|CELESC|RGE|ELEKTRO|EDP|"
+                       r"SANEPAR|SABESP|COPASA|CEDAE|CASAN|CORSAN|EMBASA|COMPESA|CAGECE|CAESB|SANEAGO|COMGAS|NATURGY|"
+                       r"VIVO|CLARO|TIM|SKY)\b")
+BILL_BOILERPLATE = ("DOCUMENTO AUXILIAR", "NOTA FISCAL", "DANF", "ELETRICA ELETRONICA", "SEGUNDA VIA", "2A VIA")
 ISSUER_RE = re.compile(r"\b(SSP|SESP|SDS|PC|IFP|IIRGD|DETRAN|SENATRAN|DENATRAN|DGPC|SJS|SSPDS|POLICIA CIVIL)\s*[-/ ]?\s*([A-Z]{2})?\b")
 SITUACOES = ("ATIVA", "BAIXADA", "SUSPENSA", "INAPTA", "NULA")
 UFS = set("AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO".split())
@@ -207,7 +220,63 @@ def _id_field(name: str, pages: list[PageText], rx: re.Pattern, check, fmt) -> F
     )
 
 
-def _text_after_label(name: str, pages: list[PageText], exclude: tuple[str, ...] = (), cleaner=None) -> FieldValue | None:
+def _is_heading(text: str) -> bool:
+    return re.sub(r"[^A-Z ]", "", fold(text)).strip() in HEADINGS
+
+
+def _value_line(page: PageText, idx: int) -> int | None:
+    """The line holding the value of the label on line `idx`. A label alone on its line is usually
+    followed by its value; when OCR stacks a run of headings (LOGRADOURO / NUMERO / COMPLEMENTO) the
+    values follow the run in the same order."""
+    lines = page.lines
+    start = idx
+    while start > 0 and _is_heading(lines[start - 1].text):
+        start -= 1
+    end = idx + 1
+    while end < len(lines) and _is_heading(lines[end].text):
+        end += 1
+    vi = end + (idx - start)
+    return vi if vi < len(lines) and not _is_heading(lines[vi].text) else None
+
+
+def _heading_value(page: PageText, heading: str) -> str | None:
+    for i, line in enumerate(page.lines):
+        if re.sub(r"[^A-Z ]", "", fold(line.text)).strip() == heading:
+            vi = _value_line(page, i)
+            if vi is not None:
+                value = page.lines[vi].text.strip()
+                return value if re.sub(r"[*\s]", "", value) else None
+    return None
+
+
+def _card_address(pages: list[PageText]) -> FieldValue | None:
+    """Cartão CNPJ address assembled from its boxes: street, number, complement, CEP, district, city/UF."""
+    for page in pages:
+        street = _heading_value(page, "LOGRADOURO")
+        if not street:
+            continue
+        number, compl = _heading_value(page, "NUMERO"), _heading_value(page, "COMPLEMENTO")
+        cep, district = _heading_value(page, "CEP"), _heading_value(page, "BAIRRODISTRITO")
+        city, uf = _heading_value(page, "MUNICIPIO"), _heading_value(page, "UF")
+        place = " - ".join(x for x in (district, f"{city}/{uf}" if city and uf else city) if x)
+        value = ", ".join(x for x in (street, number, compl, cep, place) if x)
+        return FieldValue("endereco", value, value, 0.7, page.index, None, True,
+                          note="Montado a partir dos campos do cartão; confira no original.")
+    return None
+
+
+def _company_name(value: str) -> str:
+    """Razão social as printed: without a leading preposition ('denominação social de X') and
+    without what follows the name in a sentence ('X, com sede em ...')."""
+    v = re.sub(r"^[\s,.:;-]*((DE|DA|DO|SOB A|SOB O)\s+)?", "", value)
+    return v.split(",")[0].strip(" :.-") if not value.lstrip().startswith(",") else ""
+
+
+def _person_name(value: str) -> bool:
+    return len([w for w in value.split() if len(w) >= 3 and w not in NAME_PARTICLES]) >= 2
+
+
+def _text_after_label(name: str, pages: list[PageText], exclude: tuple[str, ...] = (), cleaner=None, accept=None) -> FieldValue | None:
     for loc in _find_labels(pages, LABELS[name], exclude):
         line = loc.page.lines[loc.line_idx]
         text, offsets = _line_text_with_offsets(line)
@@ -222,13 +291,16 @@ def _text_after_label(name: str, pages: list[PageText], exclude: tuple[str, ...]
         start = loc.label_end + (len(rest[:cut]) - len(rest[:cut].lstrip(" :.-")))
         words = _words_in_span(line, offsets, start, loc.label_end + cut)
         page = loc.page.index
-        if len(re.sub(r"[^A-Z]", "", value)) < 3 and loc.line_idx + 1 < len(loc.page.lines):
-            nxt = loc.page.lines[loc.line_idx + 1]
+        if len(re.sub(r"[^A-Z]", "", value)) < 3:
+            vi = _value_line(loc.page, loc.line_idx)
+            if vi is None:
+                continue
+            nxt = loc.page.lines[vi]
             value, _ = _line_text_with_offsets(nxt)
             words = nxt.words
         if cleaner:
             value = cleaner(value)
-        if len(re.sub(r"[^A-Z0-9]", "", fold(value))) < 3:
+        if len(re.sub(r"[^A-Z0-9]", "", fold(value))) < 3 or _is_heading(value) or (accept and not accept(value)):
             continue
         return FieldValue(name=name, value=value, raw=value, confidence=_conf(words), page=page, bbox=_bbox(words), valid=True)
     return None
@@ -266,9 +338,19 @@ def _situacao(pages: list[PageText]) -> FieldValue | None:
     return None
 
 
-def _cep(pages: list[PageText]) -> FieldValue | None:
+def _issuer_block(loc: _Loc) -> bool:
+    """A CEP in a bill's header next to the company's CNPJ is the issuer's, not the customer's."""
+    if loc.page.index != 0 or loc.line_idx > 8:
+        return False
+    near = loc.page.lines[max(0, loc.line_idx - 2): loc.line_idx + 3]
+    return any(CNPJ_RE.search(line.text) for line in near)
+
+
+def _cep(pages: list[PageText], doc_type: str | None = None) -> FieldValue | None:
     locs = _find_labels(pages, LABELS["cep"])
     for loc in locs:
+        if doc_type == "comprovante_endereco" and _issuer_block(loc):
+            continue
         hit = _match_near(loc, CEP_RE)
         if hit:
             m, words, page = hit
@@ -295,11 +377,22 @@ def _socios(pages: list[PageText]) -> FieldValue | None:
 
 
 def _emissor(pages: list[PageText]) -> FieldValue | None:
+    """The company that issued the bill: a known utility or a company name in the header, skipping
+    the fiscal boilerplate ('DANF3E - DOCUMENTO AUXILIAR DA NOTA FISCAL ...')."""
     if not pages or not pages[0].lines:
         return None
-    for line in pages[0].lines[:4]:
+    head = pages[0].lines[:12]
+    for line in head:
+        shown = re.sub(r"\bCope[!|1I](?![A-Za-z])", "Copel", line.text.strip(), flags=re.I)
+        t = fold(shown)
+        if any(b in t for b in BILL_BOILERPLATE) or CNPJ_RE.search(t):
+            continue
+        if UTILITIES.search(t) or COMPANY_SUFFIX.search(t.rstrip(" .")):
+            return FieldValue("emissor", shown[:120], line.text, round(line.conf * 0.8, 3), 0, _bbox(line.words), True,
+                              note="Empresa emissora lida do cabeçalho; confirme na revisão.")
+    for line in head[:4]:
         t = line.text.strip()
-        if len(re.sub(r"[^A-Za-z]", "", t)) >= 4 and line.conf > 0.5:
+        if len(re.sub(r"[^A-Za-z]", "", t)) >= 4 and line.conf > 0.5 and not any(b in fold(t) for b in BILL_BOILERPLATE):
             return FieldValue("emissor", t[:120], t, round(line.conf * 0.5, 3), 0, _bbox(line.words), True,
                               note="Inferido da primeira linha do documento; confirme na revisão.")
     return None
@@ -309,9 +402,9 @@ def _fv(name, value, raw, page, conf=0.8, note=None) -> FieldValue:
     return FieldValue(name=name, value=value, raw=(raw or "")[:300], confidence=conf, page=page, bbox=None, valid=True, note=note)
 
 
-def _money_field(name, labels):
+def _money_field(name, labels, **kw):
     def run(pages):
-        hit = fin.labelled_money(pages, labels)
+        hit = fin.labelled_money(pages, labels, **kw)
         return _fv(name, fin.format_money(hit[0]), hit[1], hit[2]) if hit else None
     return run
 
@@ -390,7 +483,9 @@ FINANCIAL = {
     "regime_bens": _regime,
     "receita_liquida": _money_field("receita_liquida", ["RECEITA LIQUIDA", "RECEITA OPERACIONAL LIQUIDA"]),
     "lucro_liquido": _money_field("lucro_liquido", ["LUCRO LIQUIDO", "PREJUIZO LIQUIDO", "RESULTADO LIQUIDO", r"LUCRO \(PREJUIZO\) LIQUIDO"]),
-    "patrimonio_liquido": _money_field("patrimonio_liquido", ["PATRIMONIO LIQUIDO"]),
+    # on scanned statements the line after the bare heading is the first equity account (capital), not the total
+    "patrimonio_liquido": _money_field("patrimonio_liquido", ["TOTAL DO PATRIMONIO LIQUIDO", "PATRIMONIO LIQUIDO"], same_line=True,
+                                       exclude=("PASSIVO E PATRIMONIO", "MUTACOES", "DEMONSTRAC")),
     "ativo_total": _money_field("ativo_total", ["ATIVO TOTAL", "TOTAL DO ATIVO"]),
     "patrimonio_declarado": _money_field("patrimonio_declarado", ["BENS E DIREITOS", "TOTAL DE BENS"]),
     "dividas_onus": _money_field("dividas_onus", ["DIVIDAS E ONUS"]),
@@ -418,9 +513,12 @@ def extract(doc_type: str | None, wanted: list[str], pages: list[PageText]) -> d
         elif name in ("data_nascimento", "data_expedicao", "data_emissao", "validade", "data_registro"):
             fv = _date_field(name, pages)
         elif name == "nome":
-            fv = _text_after_label("nome", pages, NAME_EXCLUDE, cleaner=clean_name)
-        elif name in ("razao_social", "endereco"):
-            fv = _text_after_label(name, pages)
+            fv = _text_after_label("nome", pages, NAME_EXCLUDE, cleaner=clean_name, accept=_person_name)
+        elif name == "razao_social":
+            fv = (_text_after_label(name, pages, cleaner=_company_name, accept=COMPANY_SUFFIX.search)
+                  or _text_after_label(name, pages, cleaner=_company_name))
+        elif name == "endereco":
+            fv = (_card_address(pages) if doc_type == "cartao_cnpj" else None) or _text_after_label(name, pages)
         elif name == "rg_numero":
             fv = _id_field("rg_numero", pages, re.compile(r"(?<![\d])(\d{1,2}\.?\d{3}\.?\d{3}\s*-?\s*[\dX])(?![\d])"), lambda _: True, lambda d: d)
             if fv:
@@ -432,7 +530,7 @@ def extract(doc_type: str | None, wanted: list[str], pages: list[PageText]) -> d
         elif name == "situacao_cadastral":
             fv = _situacao(pages)
         elif name == "cep":
-            fv = _cep(pages)
+            fv = _cep(pages, doc_type)
         elif name == "socios":
             fv = _socios(pages)
         elif name == "emissor":

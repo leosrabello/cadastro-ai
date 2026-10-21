@@ -1,7 +1,6 @@
 /* Carteira, Assinaturas and Relatórios: the app's own tokens and shapes; tables carry the data, filled
    tiles carry the figures (the "Large marks on tiles" proof blueprint of the Painel, smaller). */
 .toolbar { margin-bottom: 18px; gap: 10px; }
-.check { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-size: var(--step-ui); cursor: pointer; }
 .check input { accent-color: var(--accent); width: 16px; height: 16px; }
 .input-sm { height: 32px; padding: 0 8px; font-size: var(--step-meta); }
 .table-scroll { overflow-x: auto; }

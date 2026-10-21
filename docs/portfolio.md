@@ -22,6 +22,20 @@ PostgreSQL database as the registrations, with the same roles and audit trail.
   screen and on the image.
 - The chosen modality is remembered per computer (`localStorage`) and shared by the screens.
 
+## Commercial and economic group of a registration
+
+- **Comercial responsável** is chosen when the registration is created (active commercials only)
+  and can be changed under *Modalidade, comercial e cliente da carteira*. The new-registration
+  dialog no longer lists portfolio clients; linking a client stays on the registration page.
+  Without its own commercial, a registration shows its portfolio client's.
+- **Grupo econômico** (companies and people under common control; migration `0006`,
+  `api/groups.py`). The registration page suggests members from what the documents show: another
+  registration with the same CNPJ root (head office and branches), or a partner, administrator or
+  signatory in common (names of two words or more). The analyst decides; nothing is grouped
+  automatically. The registration list has *Agrupar por grupo econômico*, which orders the
+  members of each group together and adds a filter by group. Deleting a group only unlinks its
+  registrations.
+
 ## Data: why the database, with JSON as the input format
 
 | Option | Verdict |

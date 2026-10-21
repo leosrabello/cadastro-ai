@@ -46,6 +46,8 @@ export interface RegistrationRow {
   kind: string;
   modality: Modality;
   client: { id: string; name: string; commercial: string | null } | null;
+  commercial: { id: string; name: string } | null;
+  group: { id: string; name: string } | null;
   subject_name: string;
   tax_id: string | null;
   status: RegStatus;

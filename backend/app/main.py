@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
 from app import errors
-from app.api import admin, auth, documents, operations, portfolio, registrations, report
+from app.api import admin, auth, documents, groups, operations, portfolio, registrations, report
 from app.config import get_settings
 from app.db import session_scope
 from app.models import Role, User
@@ -58,7 +58,7 @@ def create_app() -> FastAPI:
             response.headers["Cache-Control"] = "no-store"
         return response
 
-    for module in (auth, registrations, documents, operations, admin, report, portfolio):
+    for module in (auth, registrations, documents, operations, admin, report, portfolio, groups):
         app.include_router(module.router)
 
     @app.on_event("startup")

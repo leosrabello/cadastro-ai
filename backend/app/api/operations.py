@@ -10,8 +10,11 @@ from sqlalchemy.orm import Session
 from app import audit
 from app.api.serializers import FIELD_LABELS, iso, registration_row
 from app.config import get_settings
+from app.config_defaults import DOCUMENT_TYPES
 from app.db import get_db
 from app.deps import ANY_ROLE, AUDIT_READERS, SUPERVISORS, Principal
+from app.pipeline import learning
+from app.pipeline.orchestrator import _learned_norm
 from app.models import (
     AuditEvent,
     Decision,
@@ -181,6 +184,8 @@ def metrics(days: int = Query(30, ge=1, le=365), p: Principal = Depends(SUPERVIS
         "fields_reviewed": {"confirmed": confirmed, "corrected": corrected,
                             "correction_rate": round(corrected / (corrected + confirmed), 3) if (corrected + confirmed) else None},
         "findings_by_code": codes,
+        "learning": [{**x, "doc_type_label": DOCUMENT_TYPES.get(x["doc_type"], {}).get("label", x["doc_type"]),
+                      "field_label": FIELD_LABELS.get(x["field"], x["field"])} for x in learning.summary(db, _learned_norm)],
         "note": "Taxas de acerto de campos e de indícios exigem um conjunto rotulado; veja backend/scripts/evaluate.py.",
     }
 

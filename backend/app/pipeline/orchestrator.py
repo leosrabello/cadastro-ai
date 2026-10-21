@@ -31,7 +31,7 @@ from app.models import (
     utcnow,
 )
 from app.pipeline import ai as ai_mod
-from app.pipeline import classify, completeness, consistency, extract, forensics, governance, injection, ocr, priority, rendering, validity
+from app.pipeline import classify, completeness, consistency, extract, forensics, governance, injection, learning, ocr, priority, rendering, validity
 from app.pipeline.ai.base import AiRequest
 from app.pipeline.findings import FindingDraft, evidence, sync
 from app.pipeline.normalize import digits, fold, format_cnpj, format_cpf, format_money, parse_date, parse_money, valid_cnpj, valid_cpf
@@ -213,7 +213,10 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
     if doc.doc_type_source == "human" and doc.doc_type:
         doc_type, type_conf, type_source = doc.doc_type, 1.0, "human"
     wanted = doc_types.get(doc_type, {}).get("fields", COMMON_FIELDS) if doc_type else COMMON_FIELDS
-    fields = extract.extract(doc_type, wanted, pages)
+    learned = lambda t: learning.lessons(db, t, _learned_norm)  # noqa: E731
+    fields, dropped = learning.drop_rejected(extract.extract(doc_type, wanted, pages), learned(doc_type))
+    if dropped:
+        metrics["learned_dropped_fields"] = dropped
 
     drafts: list[FindingDraft] = list(integrity)
     drafts += forensics.metadata_findings(rendered.metadata, doc.id)
@@ -260,7 +263,7 @@ def _run(db: Session, document_id: uuid.UUID) -> dict:
             doc.ai_status, doc.ai_error = "done", None
             ai_summary = result.analysis.summary
             metrics.update(ai_model=result.model, ai_input_tokens=result.input_tokens, ai_output_tokens=result.output_tokens, ai_cost_usd=result.cost_usd)
-            doc_type, type_conf, type_source, fields, ai_drafts = _merge_ai(doc, result.analysis, doc_type, type_conf, type_source, fields, doc_types, pages)
+            doc_type, type_conf, type_source, fields, ai_drafts = _merge_ai(doc, result.analysis, doc_type, type_conf, type_source, fields, doc_types, pages, learned)
             drafts += ai_drafts
         except ai_mod.AiUnavailable as exc:
             doc.ai_status, doc.ai_error = "failed", str(exc)
@@ -413,7 +416,11 @@ MONEY_FIELDS = {"receita_liquida", "lucro_liquido", "patrimonio_liquido", "ativo
                 "endividamento_total", "patrimonio_declarado", "dividas_onus", "lucros_dividendos"}
 
 
-def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types, pages):
+def _learned_norm(name: str, value: str) -> str:
+    return _normalize_ai_value(name, value)[0] or value
+
+
+def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types, pages, learned):
     drafts: list[FindingDraft] = []
     ai_type = analysis.document_type if analysis.document_type in doc_types else None
     if type_source != "human" and ai_type and ai_type != doc_type:
@@ -428,7 +435,7 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
                 ))
             doc_type, type_conf, type_source = ai_type, 0.6, "ai"
             wanted = doc_types[doc_type].get("fields", COMMON_FIELDS)
-            fields = extract.extract(doc_type, wanted, pages)
+            fields, _ = learning.drop_rejected(extract.extract(doc_type, wanted, pages), learned(doc_type))
         else:
             drafts.append(FindingDraft(
                 code="DOC_TYPE_DISAGREEMENT", category="quality", severity="low", source="ai", document_id=doc.id,
@@ -439,6 +446,7 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
             ))
 
     allowed = set(doc_types.get(doc_type, {}).get("fields", COMMON_FIELDS)) if doc_type else set(COMMON_FIELDS)
+    lessons = None
     for af in analysis.fields:
         if af.name not in allowed:
             continue
@@ -465,11 +473,18 @@ def _merge_ai(doc, analysis, doc_type, type_conf, type_source, fields, doc_types
                 explanation=f"O OCR com regras leu '{current.raw}'; a IA leu '{af.value}'. Uma das leituras está errada, ou o campo está ambíguo no documento.",
                 recommended_action="Confira no original e confirme ou corrija o campo.",
                 evidence=[
-                    evidence("Regras (OCR)", current.raw, document_id=doc.id, field=af.name, page=current.page, bbox=current.bbox),
-                    evidence("IA", af.value, document_id=doc.id, field=af.name, page=af.page, note=af.evidence_text[:200]),
+                    evidence(learning.RULES_LABEL, current.raw, document_id=doc.id, field=af.name, page=current.page, bbox=current.bbox),
+                    evidence(learning.AI_LABEL, af.value, document_id=doc.id, field=af.name, page=af.page, note=af.evidence_text[:200]),
                 ],
                 rule_id="ai.field_disagreement",
             ))
+            if lessons is None:
+                lessons = learned(doc_type)
+            if af.name in lessons.prefer_ai:
+                fields[af.name] = extract.FieldValue(
+                    name=af.name, value=norm, raw=af.value, confidence=0.6, page=af.page, bbox=None, valid=ok, source="ai",
+                    note="Usada a leitura da IA: nas revisões deste tipo de documento, as analistas ficaram com a IA mais vezes que com as regras.",
+                )
 
     for i, ob in enumerate(analysis.observations):
         sev = ob.severity if SEV.index(ob.severity) <= SEV.index(CERTAINTY_SEVERITY_CAP[ob.certainty]) else CERTAINTY_SEVERITY_CAP[ob.certainty]

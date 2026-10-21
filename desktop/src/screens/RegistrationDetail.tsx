@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../api/client";
-import type { Decision, DocumentBrief, Finding, InfoItem, Modality, Page, PortfolioClient, RegistrationDetail as R } from "../api/types";
+import type { Decision, DocumentBrief, Finding, InfoItem, Modality, Page, PortfolioClient, RegistrationDetail as R, RegistrationRow } from "../api/types";
 import { useAuth, usePerm } from "../auth";
-import { DeleteRegistration } from "../components/DeleteRegistration";
+import { DeleteDocument } from "../components/DeleteDocument";
+import { DeleteRegistration, TrashIcon } from "../components/DeleteRegistration";
 import { FindingCard } from "../components/FindingCard";
 import { ModalityTag } from "../components/ModalitySwitch";
 import { UploadZone } from "../components/Upload";
@@ -23,6 +24,7 @@ export function RegistrationDetail() {
   const [deciding, setDeciding] = useState<Decision["action"] | null>(null);
   const [showClosed, setShowClosed] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [grouping, setGrouping] = useState(false);
   const [showTrail, setShowTrail] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -69,8 +71,11 @@ export function RegistrationDetail() {
             <ModalityTag modality={r.modality} />
             <span className="num">{r.code}</span>
             <span>{meta?.profiles[r.kind]?.label ?? r.kind}</span>
-            {r.client && <Link to={`/carteira?cliente=${r.client.id}`}>Carteira: {r.client.name}{r.client.commercial ? `, ${r.client.commercial}` : ""}</Link>}
-            {perm.operate && !closed && <button className="link-btn meta" onClick={() => setLinking(true)}>{r.client ? "Alterar modalidade ou cliente" : "Modalidade e cliente da carteira"}</button>}
+            {r.client && <Link to={`/carteira?cliente=${r.client.id}`}>Carteira: {r.client.name}</Link>}
+            {r.commercial && <span>Comercial: {r.commercial.name}</span>}
+            {perm.operate && !closed && <button className="link-btn meta" onClick={() => setLinking(true)}>{r.client || r.commercial ? "Alterar modalidade, comercial ou cliente" : "Modalidade, comercial e cliente da carteira"}</button>}
+            {r.group && <Link to={`/cadastros?agrupar=grupo&grupo=${r.group.id}`}>Grupo: {r.group.name}</Link>}
+            {perm.operate && !closed && <button className="link-btn meta" onClick={() => setGrouping(true)}>{r.group ? "Alterar grupo econômico" : "Grupo econômico"}</button>}
             <span className="num">{fmtTaxId(r.tax_id)}</span>
             <span className="muted">Criado {relative(r.created_at)}{r.created_by ? ` por ${r.created_by.name}` : ""}</span>
           </p>
@@ -117,7 +122,7 @@ export function RegistrationDetail() {
               <span className="meta">{plural(r.documents.length, "arquivo", "arquivos")}</span>
             </div>
             {perm.operate && <UploadZone registrationId={r.id} disabled={closed} />}
-            {r.documents.length > 0 && <DocGroups docs={r.documents} isCompany={meta?.profiles[r.kind]?.tax_id_kind === "cnpj"} docName={docName} onOpen={(id) => nav(`/documentos/${id}`)} />}
+            {r.documents.length > 0 && <DocGroups docs={r.documents} isCompany={meta?.profiles[r.kind]?.tax_id_kind === "cnpj"} docName={docName} onOpen={(id) => nav(`/documentos/${id}`)} canDelete={perm.operate && !final} />}
           </section>
 
           <section aria-labelledby="findings-h">
@@ -173,6 +178,7 @@ export function RegistrationDetail() {
         </div>
       </div>
       {linking && <LinkDialog r={r} onClose={() => setLinking(false)} />}
+      {grouping && <GroupDialog r={r} onClose={() => setGrouping(false)} />}
       {deleting && <DeleteRegistration r={{ ...r, documents: r.documents.length }} onClose={() => setDeleting(false)} onDone={() => nav("/cadastros")} />}
       {deciding && <DecisionDialog r={r} action={deciding} onClose={() => setDeciding(null)} />}
     </div>
@@ -232,7 +238,8 @@ function needsAttention(d: DocumentBrief) {
   return d.status !== "processed" || !d.doc_type || v === "expired" || v === "too_old" || v === "invalid" || v === "contradictory";
 }
 
-function DocGroups({ docs, isCompany, docName, onOpen }: { docs: DocumentBrief[]; isCompany: boolean; docName: (d: DocumentBrief) => string; onOpen: (id: string) => void }) {
+function DocGroups({ docs, isCompany, docName, onOpen, canDelete }: { docs: DocumentBrief[]; isCompany: boolean; docName: (d: DocumentBrief) => string; onOpen: (id: string) => void; canDelete: boolean }) {
+  const [deleting, setDeleting] = useState<DocumentBrief | null>(null);
   const groups = DOC_GROUPS.map((g) => ({ ...g, label: !isCompany && g.personLabel ? g.personLabel : g.label, docs: docs.filter((d) => d.doc_type && g.types.includes(d.doc_type)) }));
   const known = new Set(DOC_GROUPS.flatMap((g) => g.types));
   groups.push({ key: "outros", label: "Tipo não identificado", types: [], docs: docs.filter((d) => !d.doc_type || !known.has(d.doc_type)) });
@@ -265,7 +272,7 @@ function DocGroups({ docs, isCompany, docName, onOpen }: { docs: DocumentBrief[]
             {open[g.key] && (
               <table className="table docs-table">
                 <thead>
-                  <tr><th>Documento</th><th>Validade</th><th>Análise</th><th>Recebido</th></tr>
+                  <tr><th>Documento</th><th>Validade</th><th>Análise</th><th>Recebido</th>{canDelete && <th aria-label="Excluir" />}</tr>
                 </thead>
                 <tbody>
                   {sorted.map((d) => (
@@ -277,6 +284,14 @@ function DocGroups({ docs, isCompany, docName, onOpen }: { docs: DocumentBrief[]
                       <td>{d.validity ? <Mark tone={VALIDITY[d.validity.state].tone}>{VALIDITY[d.validity.state].label}</Mark> : <span className="muted">—</span>}</td>
                       <td><DocState d={d} /></td>
                       <td className="meta num">{fmtDate(d.received_at)}<div>{d.source === "shared_folder" ? "Pasta monitorada" : "Envio manual"}</div></td>
+                      {canDelete && (
+                        <td className="row-action">
+                          <button className="icon-btn" title={`Excluir ${d.original_filename}`} aria-label={`Excluir documento ${d.original_filename}`}
+                            onClick={(e) => { e.stopPropagation(); setDeleting(d); }}>
+                            <TrashIcon />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -285,6 +300,7 @@ function DocGroups({ docs, isCompany, docName, onOpen }: { docs: DocumentBrief[]
           </section>
         );
       })}
+      {deleting && <DeleteDocument d={deleting} onClose={() => setDeleting(null)} />}
     </div>
   );
 }
@@ -439,22 +455,32 @@ function LinkDialog({ r, onClose }: { r: R; onClose: () => void }) {
   const toast = useToast();
   const [modality, setModalityChoice] = useState<Modality>(r.modality);
   const [clientId, setClientId] = useState(r.client?.id ?? "");
+  const [commercialId, setCommercialId] = useState(r.commercial?.id ?? "");
+  const catalog = useQuery({
+    queryKey: ["portfolio-catalog"],
+    queryFn: () => api<{ commercials: { id: string; name: string; is_active: boolean }[] }>("/api/portfolio/catalog"),
+    staleTime: 60_000,
+  });
+  const commercials = (catalog.data?.commercials ?? []).filter((c) => c.is_active || c.id === commercialId);
   const clients = useQuery({
     queryKey: ["portfolio-clients-names", modality],
     queryFn: () => api<Page<PortfolioClient>>(`/api/portfolio/clients?modality=${modality}&sort=name&page_size=500`),
   });
   const save = useMutation({
-    mutationFn: () => api(`/api/registrations/${r.id}`, { method: "PATCH", json: clientId ? { modality, client_id: clientId } : { modality, clear_client: true } }),
+    mutationFn: () => api(`/api/registrations/${r.id}`, {
+      method: "PATCH",
+      json: { modality, ...(clientId ? { client_id: clientId } : { clear_client: true }), ...(commercialId ? { commercial_id: commercialId } : { clear_commercial: true }) },
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["registration", r.id] });
       qc.invalidateQueries({ queryKey: ["registrations"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      toast("Modalidade e cliente salvos.");
+      toast("Alterações salvas.");
       onClose();
     },
   });
   return (
-    <Dialog title="Modalidade e cliente da carteira" onClose={onClose}>
+    <Dialog title="Modalidade, comercial e cliente da carteira" onClose={onClose}>
       <p className="muted" style={{ marginBottom: 16 }}>O cadastro entra nos números da modalidade escolhida. O cliente, se houver, precisa ser da mesma carteira.</p>
       <form className="form-grid" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
         <div className="segmented" role="radiogroup" aria-label="Modalidade">
@@ -462,6 +488,13 @@ function LinkDialog({ r, onClose }: { r: R; onClose: () => void }) {
             <button type="button" role="radio" key={m} aria-checked={modality === m} aria-pressed={modality === m} onClick={() => { setModalityChoice(m); setClientId(""); }}>{MODALITY_LABEL[m]}</button>
           ))}
         </div>
+        <label className="label">
+          <span>Comercial responsável</span>
+          <select className="select" value={commercialId} onChange={(e) => setCommercialId(e.target.value)}>
+            <option value="">Ainda não definido</option>
+            {commercials.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
         <label className="label">
           <span>Cliente da carteira {MODALITY_LABEL[modality]}</span>
           <select className="select" value={clientId} onChange={(e) => setClientId(e.target.value)}>
@@ -473,6 +506,98 @@ function LinkDialog({ r, onClose }: { r: R; onClose: () => void }) {
         <div className="dialog-actions">
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
           <button className="btn btn-primary" disabled={save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
+interface GroupSuggestion { registration: RegistrationRow; reasons: string[] }
+interface EconomicGroup { id: string; name: string; members: number }
+
+/** Puts the registration in an economic group (companies and people under common control). The
+ * suggestions come from the documents: same CNPJ root, or a partner or administrator in common. */
+function GroupDialog({ r, onClose }: { r: R; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const groups = useQuery({ queryKey: ["groups"], queryFn: () => api<{ items: EconomicGroup[] }>("/api/groups") });
+  const suggestions = useQuery({ queryKey: ["group-suggestions", r.id], queryFn: () => api<{ items: GroupSuggestion[] }>(`/api/registrations/${r.id}/group-suggestions`) });
+  const [mode, setMode] = useState<"existing" | "new">(r.group ? "existing" : "new");
+  const [groupId, setGroupId] = useState(r.group?.id ?? "");
+  const [name, setName] = useState("");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const items = suggestions.data?.items ?? [];
+  useEffect(() => {
+    // a suggested company already in a group points to that group
+    const grouped = items.find((x) => x.registration.group);
+    if (!r.group && grouped?.registration.group) { setMode("existing"); setGroupId(grouped.registration.group.id); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suggestions.data]);
+  const refresh = () => {
+    for (const k of ["registration", "registrations", "groups", "group-suggestions"]) qc.invalidateQueries({ queryKey: [k] });
+  };
+  const save = useMutation({
+    mutationFn: async () => {
+      const others = [...picked];
+      if (mode === "new") {
+        await api("/api/groups", { method: "POST", json: { name, registration_ids: [r.id, ...others] } });
+        return;
+      }
+      for (const id of [r.id, ...others]) await api(`/api/registrations/${id}`, { method: "PATCH", json: { group_id: groupId } });
+    },
+    onSuccess: () => { refresh(); toast("Grupo econômico salvo."); onClose(); },
+  });
+  const leave = useMutation({
+    mutationFn: () => api(`/api/registrations/${r.id}`, { method: "PATCH", json: { clear_group: true } }),
+    onSuccess: () => { refresh(); toast("Cadastro retirado do grupo."); onClose(); },
+  });
+  const toggle = (id: string) => setPicked((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const valid = mode === "new" ? name.trim().length >= 2 : !!groupId;
+  return (
+    <Dialog title="Grupo econômico" onClose={onClose}>
+      <p className="muted" style={{ marginBottom: 16 }}>
+        Empresas e pessoas sob controle comum. {r.group ? <>Hoje este cadastro está em <span className="strong">{r.group.name}</span>.</> : "Este cadastro ainda não está em um grupo."}
+      </p>
+      <form className="form-grid" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}>
+        <fieldset className="label field-set">
+          <legend>Sugestões pelos documentos</legend>
+          {suggestions.isLoading ? <Skeleton h={48} /> : items.length === 0 ? (
+            <p className="muted">Nenhum outro cadastro com a mesma raiz de CNPJ ou com sócio ou administrador em comum.</p>
+          ) : (
+            <div className="checks group-suggestions">
+              {items.map((x) => (
+                <label key={x.registration.id} className="check group-suggestion">
+                  <input type="checkbox" checked={picked.has(x.registration.id)} onChange={() => toggle(x.registration.id)} />
+                  <span>
+                    <span className="strong">{x.registration.subject_name}</span> <span className="meta num">{x.registration.code}{x.registration.group ? ` · em ${x.registration.group.name}` : ""}</span>
+                    <span className="meta" style={{ display: "block" }}>{x.reasons.join("; ")}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )}
+        </fieldset>
+        <div className="segmented" role="radiogroup" aria-label="Grupo">
+          <button type="button" role="radio" aria-checked={mode === "existing"} aria-pressed={mode === "existing"} onClick={() => setMode("existing")} disabled={!groups.data?.items.length}>Grupo existente</button>
+          <button type="button" role="radio" aria-checked={mode === "new"} aria-pressed={mode === "new"} onClick={() => setMode("new")}>Novo grupo</button>
+        </div>
+        {mode === "existing" ? (
+          <label className="label"><span>Grupo</span>
+            <select className="select" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
+              <option value="">Escolha o grupo</option>
+              {groups.data?.items.map((g) => <option key={g.id} value={g.id}>{g.name} ({plural(g.members, "cadastro", "cadastros")})</option>)}
+            </select>
+          </label>
+        ) : (
+          <label className="label"><span>Nome do grupo</span>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Grupo Nunes" autoComplete="off" /></label>
+        )}
+        <p className="meta">{picked.size ? `Entram no grupo este cadastro e ${plural(picked.size, "sugestão marcada", "sugestões marcadas")}.` : "Entra no grupo só este cadastro; marque as sugestões que também fazem parte."}</p>
+        {(save.isError || leave.isError) && <p className="form-error">{errorText(save.error ?? leave.error)}</p>}
+        <div className="dialog-actions">
+          {r.group && <button type="button" className="btn btn-ghost" onClick={() => leave.mutate()} disabled={leave.isPending} style={{ marginRight: "auto" }}>Tirar do grupo</button>}
+          <button type="button" className="btn btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn btn-primary" disabled={!valid || save.isPending}>{save.isPending ? "Salvando…" : "Salvar"}</button>
         </div>
       </form>
     </Dialog>
