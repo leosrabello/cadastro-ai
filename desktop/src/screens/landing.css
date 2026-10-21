@@ -16,7 +16,7 @@ html.landing-scroll, html.landing-scroll body, html.landing-scroll #root { heigh
 .l-links { display: flex; gap: 28px; }
 .l-links a { text-decoration: none; color: var(--muted); transition: color 140ms var(--ease); }
 .l-links a:hover { color: var(--ink); }
-.l-name { margin: 15vh 0 0; font-size: clamp(64px, 20.1vw, 360px); font-weight: 600; letter-spacing: -0.055em; line-height: 0.86; margin-left: -0.05em; white-space: nowrap; font-variation-settings: "opsz" 96; }
+.l-name { margin: 15vh 0 0; font-size: clamp(48px, 12vw, 216px); font-weight: 600; letter-spacing: -0.05em; line-height: 0.88; margin-left: -0.05em; white-space: nowrap; font-variation-settings: "opsz" 96; }
 .l-mask { display: block; overflow: hidden; padding-bottom: 0.06em; }
 .l-line { display: block; animation: lineUp 900ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 @keyframes lineUp { from { transform: translateY(105%); } }
@@ -147,7 +147,7 @@ html.landing-scroll, html.landing-scroll body, html.landing-scroll #root { heigh
 /* ---------- phone: its own composition ---------- */
 @media (max-width: 760px) {
   .l-links a:not(:last-child) { display: none; }
-  .l-name { font-size: 17vw; margin-top: 14vh; }
+  .l-name { font-size: 14vw; margin-top: 14vh; }
   .l-bottom { flex-direction: column; align-items: stretch; gap: 20px; }
   .l-sentence { font-size: 18px; }
   .l-action { width: 100%; }
